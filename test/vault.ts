@@ -7,7 +7,7 @@ import { deployVault } from './utils';
 import { Vault } from '../typechain';
 
 describe('Rift Vault Unit tests', () => {
-  const fixedRate = BigNumber.from('100');
+  const fixedRate = BigNumber.from('10');
 
   let admin: SignerWithAddress;
   let alice: SignerWithAddress;

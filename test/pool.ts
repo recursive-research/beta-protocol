@@ -8,7 +8,7 @@ import { deployVault, deployPool, getERC20 } from './utils';
 import { Tokens } from './constants';
 
 describe('Rift Pool Unit tests', () => {
-  const fixedRate = BigNumber.from('100');
+  const fixedRate = BigNumber.from('10');
 
   let admin: SignerWithAddress;
 
