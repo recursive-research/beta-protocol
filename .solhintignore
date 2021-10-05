@@ -1,0 +1,6 @@
+# directories
+**/.yarn/
+**/build/
+**/dist/
+**/artifacts
+**/node_modules
