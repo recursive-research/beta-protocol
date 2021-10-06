@@ -8,7 +8,6 @@
 **/cache
 **/coverage
 **/dist
-**/interfaces
 **/node_modules
 **/typechain
 
