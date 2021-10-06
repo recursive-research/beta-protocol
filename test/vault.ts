@@ -187,16 +187,13 @@ describe('Rift Vault Unit tests', () => {
 
     it('should allow users to withdraw proportional share', async () => {
       const vaultEthBalance = await ethers.provider.getBalance(vault.address);
-      console.log(vaultEthBalance);
       const stakingTokenTotalSupply = await vault.totalSupply();
       const aliceStakingTokenBalance = await vault.balanceOf(alice.address);
       const aliceEthBalanceInitial = await ethers.provider.getBalance(alice.address);
-      console.log(aliceEthBalanceInitial);
 
       await vault.connect(alice).withdrawEth(aliceStakingTokenBalance);
 
       const aliceEthBalanceFinal = await ethers.provider.getBalance(alice.address);
-      console.log(aliceEthBalanceFinal);
       const aliceEthBalanceIncrease = aliceEthBalanceFinal.sub(aliceEthBalanceInitial);
       const aliceEthShare = vaultEthBalance.mul(aliceStakingTokenBalance).div(stakingTokenTotalSupply);
 
