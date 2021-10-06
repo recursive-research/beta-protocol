@@ -7,9 +7,9 @@ import { Vault, IERC20, Pool } from '../typechain';
 import { deployContract } from 'ethereum-waffle';
 
 // Helper functions to deploy contracts
-export async function deployVault(admin: SignerWithAddress, fixedRate: BigNumber): Promise<Vault> {
+export async function deployVault(admin: SignerWithAddress, fixedRate: BigNumber, maxEth: BigNumber): Promise<Vault> {
   const vaultArtifact: Artifact = await hre.artifacts.readArtifact('Vault');
-  return (await deployContract(admin, vaultArtifact, [fixedRate])) as Vault;
+  return (await deployContract(admin, vaultArtifact, [fixedRate, maxEth])) as Vault;
 }
 
 export async function deployPool(admin: SignerWithAddress, vault: Vault, token: IERC20): Promise<Pool> {
