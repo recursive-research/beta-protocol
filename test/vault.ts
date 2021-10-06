@@ -3,14 +3,17 @@ import { BigNumber } from 'ethers';
 import hre, { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
-import { deployVault } from './utils';
-import { Vault } from '../typechain';
+import { deployPool, deployVault, getERC20, getTokens } from './utils';
+import { Pool, Vault, ERC20 } from '../typechain';
+import { Tokens } from './constants';
 
 describe('Rift Vault Unit tests', () => {
   const tokenName = 'RIFT - Fixed Rate ETH';
   const tokenSymbol = 'frETH';
   const fixedRate = BigNumber.from('10');
   const ethDepositAmount = ethers.utils.parseEther('8');
+  const yfiDepositAmount = ethers.utils.parseEther('100');
+  const yfiPoolAllocation = BigNumber.from('50');
   const maxEth = ethers.utils.parseEther('10');
   const newMaxEth = ethers.utils.parseEther('20');
 
@@ -18,15 +21,24 @@ describe('Rift Vault Unit tests', () => {
   let alice: SignerWithAddress;
   let bob: SignerWithAddress;
 
+  let yfi: ERC20;
+  let weth: ERC20;
+
   let vault: Vault;
+  let pool: Pool;
 
   before(async () => {
     // account setup
     const signers: SignerWithAddress[] = await hre.ethers.getSigners();
     [admin, alice, bob] = signers;
 
+    // external contract setup
+    yfi = await getERC20(Tokens.yfi);
+    weth = await getERC20(Tokens.weth);
+
     // contract setup
     vault = await deployVault(admin, fixedRate, maxEth);
+    pool = await deployPool(admin, vault, yfi);
   });
 
   describe('Deployment', async () => {
@@ -51,7 +63,7 @@ describe('Rift Vault Unit tests', () => {
     });
 
     it('should reject phase update from non owner', async () => {
-      await expect(vault.connect(alice).executePhaseOne()).to.be.revertedWith('Ownable: caller is not the owner');
+      await expect(vault.connect(alice).executePhaseOne([], [])).to.be.revertedWith('Ownable: caller is not the owner');
     });
 
     it('should reject moving to phase 2', async () => {
@@ -92,7 +104,17 @@ describe('Rift Vault Unit tests', () => {
     });
 
     it('should allow owner to move to phase 1', async () => {
-      await vault.executePhaseOne();
+      await getTokens(alice, yfi, yfiDepositAmount);
+      await yfi.connect(alice).approve(pool.address, yfiDepositAmount);
+      await pool.connect(alice).depositToken(yfiDepositAmount);
+
+      const vaultEthBalanceInitial = await ethers.provider.getBalance(vault.address);
+      await vault.executePhaseOne([pool.address], [yfiPoolAllocation]);
+      const vaultEthBalanceFinal = await weth.balanceOf(vault.address);
+
+      expect(vaultEthBalanceInitial.sub(vaultEthBalanceFinal)).to.eq(
+        vaultEthBalanceInitial.mul(yfiPoolAllocation).div(100),
+      );
       expect(await vault.phase()).to.eq(1);
     });
   });
@@ -107,7 +129,9 @@ describe('Rift Vault Unit tests', () => {
     });
 
     it('should reject calling executePhaseOne again', async () => {
-      await expect(vault.executePhaseOne()).to.be.revertedWith('Cannot execute this function during current phase');
+      await expect(vault.executePhaseOne([], [])).to.be.revertedWith(
+        'Cannot execute this function during current phase',
+      );
     });
 
     it('should reject users depositing ETH', async () => {
@@ -136,7 +160,9 @@ describe('Rift Vault Unit tests', () => {
 
   describe('Phase Two', async () => {
     it('should reject changing the phase', async () => {
-      await expect(vault.executePhaseOne()).to.be.revertedWith('Cannot execute this function during current phase');
+      await expect(vault.executePhaseOne([], [])).to.be.revertedWith(
+        'Cannot execute this function during current phase',
+      );
       await expect(vault.executePhaseTwo()).to.be.revertedWith('Cannot execute this function during current phase');
     });
 
@@ -161,13 +187,16 @@ describe('Rift Vault Unit tests', () => {
 
     it('should allow users to withdraw proportional share', async () => {
       const vaultEthBalance = await ethers.provider.getBalance(vault.address);
+      console.log(vaultEthBalance);
       const stakingTokenTotalSupply = await vault.totalSupply();
       const aliceStakingTokenBalance = await vault.balanceOf(alice.address);
       const aliceEthBalanceInitial = await ethers.provider.getBalance(alice.address);
+      console.log(aliceEthBalanceInitial);
 
       await vault.connect(alice).withdrawEth(aliceStakingTokenBalance);
 
       const aliceEthBalanceFinal = await ethers.provider.getBalance(alice.address);
+      console.log(aliceEthBalanceFinal);
       const aliceEthBalanceIncrease = aliceEthBalanceFinal.sub(aliceEthBalanceInitial);
       const aliceEthShare = vaultEthBalance.mul(aliceStakingTokenBalance).div(stakingTokenTotalSupply);
 
