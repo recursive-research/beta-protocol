@@ -59,12 +59,19 @@ describe('Rift Pool Unit tests', () => {
       );
     });
 
+    it('should reject withdraws', async () => {
+      await expect(pool.connect(alice).withdrawToken(sushiDepositAmount)).to.be.revertedWith(
+        'Cannot execute this function during current phase',
+      );
+    });
+
     it('should mint pool tokens to user on deposit', async () => {
       await getTokens(alice, sushi, sushiDepositAmount);
       await sushi.connect(alice).approve(pool.address, sushiDepositAmount);
       await pool.connect(alice).depositToken(sushiDepositAmount);
 
       expect(await pool.balanceOf(alice.address)).to.eq(sushiDepositAmount);
+      expect(await sushi.balanceOf(pool.address)).to.eq(sushiDepositAmount);
       expect(await pool.totalSupply()).to.eq(sushiDepositAmount);
     });
   });
@@ -79,6 +86,12 @@ describe('Rift Pool Unit tests', () => {
         'Cannot execute this function during current phase',
       );
     });
+
+    it('should reject withdraws', async () => {
+      await expect(pool.connect(alice).withdrawToken(sushiDepositAmount)).to.be.revertedWith(
+        'Cannot execute this function during current phase',
+      );
+    });
   });
 
   describe('Phase Two', async () => {
@@ -90,6 +103,20 @@ describe('Rift Pool Unit tests', () => {
       await expect(pool.connect(alice).depositToken(sushiDepositAmount)).to.be.revertedWith(
         'Cannot execute this function during current phase',
       );
+    });
+
+    it('should reject withdraw when withdraw amount exceeds balance', async () => {
+      await expect(pool.connect(alice).withdrawToken(sushiDepositAmount.mul(2))).to.be.revertedWith(
+        'Withdraw amount exceeds balance',
+      );
+    });
+
+    it('should allow users to withdraw proportional share', async () => {
+      await pool.connect(alice).withdrawToken(sushiDepositAmount);
+
+      expect(await sushi.balanceOf(alice.address)).to.eq(sushiDepositAmount);
+      expect(await pool.balanceOf(alice.address)).to.eq(0);
+      expect(await sushi.balanceOf(pool.address)).to.eq(0);
     });
   });
 });

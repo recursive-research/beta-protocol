@@ -159,9 +159,14 @@ describe('Rift Vault Unit tests', () => {
     });
 
     it('should allow users to withdraw proportional share', async () => {
+      const initialBalance = await ethers.provider.getBalance(alice.address);
       await vault.connect(alice).withdrawEth(ethDepositAmount);
+      const newBalance = await ethers.provider.getBalance(alice.address);
+
+      // next line is jank. alice's initial eth balance is also used for gas so it's decreased slightly
+      expect(newBalance.sub(initialBalance)).to.be.gt(ethDepositAmount.mul(99).div(100));
       expect(await vault.balanceOf(alice.address)).to.eq(0);
-      expect(await vault.provider.getBalance(vault.address)).to.eq(ethDepositAmount);
+      expect(await ethers.provider.getBalance(vault.address)).to.eq(ethDepositAmount);
     });
   });
 });
