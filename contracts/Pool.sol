@@ -1,12 +1,30 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.6;
 
-contract Pool {
-    address public vault;
-    uint256 public token;
+import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import './interfaces/IVault.sol';
 
-    constructor(address _vault, uint256 _token) {
-        vault = _vault;
-        token = _token;
+contract Pool is ERC20 {
+    IVault public immutable vault;
+    ERC20 public immutable token;
+
+    modifier duringPhase(IVault.Phases _phase) {
+        require(vault.phase() == _phase, 'Cannot execute this function during current phase');
+        _;
+    }
+
+    constructor(address _vaultAddress, address _token)
+        ERC20(
+            string(abi.encodePacked('Rift ', ERC20(_token).name(), ' Pool')),
+            string(abi.encodePacked('rp', ERC20(_token).symbol()))
+        )
+    {
+        vault = IVault(_vaultAddress);
+        token = ERC20(_token);
+    }
+
+    function depositToken(uint256 amount) external duringPhase(IVault.Phases.Zero) {
+        token.transferFrom(msg.sender, address(this), amount);
+        _mint(msg.sender, amount);
     }
 }
