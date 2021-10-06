@@ -2,7 +2,6 @@
 pragma solidity 0.8.6;
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
-import 'hardhat/console.sol';
 
 contract Vault is ERC20('RIFT - Fixed Rate ETH', 'frETH'), Ownable {
     uint256 public fixedRate;
