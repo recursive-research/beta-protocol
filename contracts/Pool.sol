@@ -5,7 +5,6 @@ import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import './interfaces/IMasterChef.sol';
 import './interfaces/IMasterChefV2.sol';
-import './interfaces/IPool.sol';
 import './interfaces/IUniswapV2Router02.sol';
 import './interfaces/IVault.sol';
 import './interfaces/IWETH.sol';
