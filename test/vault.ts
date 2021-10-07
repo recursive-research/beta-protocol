@@ -62,7 +62,7 @@ describe('Rift Vault Unit tests', () => {
       await vault.connect(alice).depositEth({ value: ethDepositAmount });
 
       expect(await vault.balanceOf(alice.address)).to.eq(ethDepositAmount);
-      expect(await vault.provider.getBalance(vault.address)).to.eq(ethDepositAmount);
+      expect(await ethers.provider.getBalance(vault.address)).to.eq(ethDepositAmount);
       expect(await vault.totalSupply()).to.eq(ethDepositAmount);
     });
 
@@ -87,7 +87,7 @@ describe('Rift Vault Unit tests', () => {
       await vault.connect(bob).depositEth({ value: ethDepositAmount });
 
       expect(await vault.balanceOf(bob.address)).to.eq(ethDepositAmount);
-      expect(await vault.provider.getBalance(vault.address)).to.eq(ethDepositAmount.mul(2));
+      expect(await ethers.provider.getBalance(vault.address)).to.eq(ethDepositAmount.mul(2));
       expect(await vault.totalSupply()).to.eq(ethDepositAmount.mul(2));
     });
 
@@ -153,20 +153,27 @@ describe('Rift Vault Unit tests', () => {
     });
 
     it('should reject withdraw when withdraw amount exceeds balance', async () => {
-      await expect(vault.connect(alice).withdrawEth(ethDepositAmount.mul(2))).to.be.revertedWith(
+      const aliceStakingTokenBalance = await vault.balanceOf(alice.address);
+      await expect(vault.connect(alice).withdrawEth(aliceStakingTokenBalance.add(1))).to.be.revertedWith(
         'Withdraw amount exceeds balance',
       );
     });
 
     it('should allow users to withdraw proportional share', async () => {
-      const initialBalance = await ethers.provider.getBalance(alice.address);
-      await vault.connect(alice).withdrawEth(ethDepositAmount);
-      const newBalance = await ethers.provider.getBalance(alice.address);
+      const vaultEthBalance = await ethers.provider.getBalance(vault.address);
+      const stakingTokenTotalSupply = await vault.totalSupply();
+      const aliceStakingTokenBalance = await vault.balanceOf(alice.address);
+      const aliceEthBalanceInitial = await ethers.provider.getBalance(alice.address);
 
-      // next line is jank. alice's initial eth balance is also used for gas so it's decreased slightly
-      expect(newBalance.sub(initialBalance)).to.be.gt(ethDepositAmount.mul(99).div(100));
+      await vault.connect(alice).withdrawEth(aliceStakingTokenBalance);
+
+      const aliceEthBalanceFinal = await ethers.provider.getBalance(alice.address);
+      const aliceEthBalanceIncrease = aliceEthBalanceFinal.sub(aliceEthBalanceInitial);
+      const aliceEthShare = vaultEthBalance.mul(aliceStakingTokenBalance).div(stakingTokenTotalSupply);
+
+      expect(aliceEthBalanceIncrease).to.be.gt(aliceEthShare.mul(99).div(100));
       expect(await vault.balanceOf(alice.address)).to.eq(0);
-      expect(await ethers.provider.getBalance(vault.address)).to.eq(ethDepositAmount);
+      expect(await ethers.provider.getBalance(vault.address)).to.eq(vaultEthBalance.sub(aliceEthShare));
     });
   });
 });

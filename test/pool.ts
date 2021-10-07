@@ -112,11 +112,17 @@ describe('Rift Pool Unit tests', () => {
     });
 
     it('should allow users to withdraw proportional share', async () => {
-      await pool.connect(alice).withdrawToken(sushiDepositAmount);
+      const poolSushiBalance = await sushi.balanceOf(pool.address);
+      const stakingTokenTotalSupply = await pool.totalSupply();
+      const aliceStakingTokenBalance = await pool.balanceOf(alice.address);
 
-      expect(await sushi.balanceOf(alice.address)).to.eq(sushiDepositAmount);
+      await pool.connect(alice).withdrawToken(aliceStakingTokenBalance);
+
+      const aliceSushiBalanceExpected = poolSushiBalance.mul(aliceStakingTokenBalance).div(stakingTokenTotalSupply);
+
+      expect(await sushi.balanceOf(alice.address)).to.eq(aliceSushiBalanceExpected);
       expect(await pool.balanceOf(alice.address)).to.eq(0);
-      expect(await sushi.balanceOf(pool.address)).to.eq(0);
+      expect(await sushi.balanceOf(pool.address)).to.eq(poolSushiBalance.sub(aliceSushiBalanceExpected));
     });
   });
 });
