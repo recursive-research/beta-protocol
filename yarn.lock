@@ -3496,6 +3496,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"cli-table3@npm:^0.6.0":
+  version: 0.6.0
+  resolution: "cli-table3@npm:0.6.0"
+  dependencies:
+    colors: ^1.1.2
+    object-assign: ^4.1.0
+    string-width: ^4.2.0
+  dependenciesMeta:
+    colors:
+      optional: true
+  checksum: 98682a2d3eef5ad07d34a08f90398d0640004e28ecf8eb59006436f11ed7b4d453db09f46c2ea880618fbd61fee66321b3b3ee1b20276bc708b6baf6f9663d75
+  languageName: node
+  linkType: hard
+
 "cli-truncate@npm:2.1.0, cli-truncate@npm:^2.1.0":
   version: 2.1.0
   resolution: "cli-truncate@npm:2.1.0"
@@ -3618,7 +3632,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"colors@npm:^1.1.2":
+"colors@npm:^1.1.2, colors@npm:^1.4.0":
   version: 1.4.0
   resolution: "colors@npm:1.4.0"
   checksum: 98aa2c2418ad87dedf25d781be69dc5fc5908e279d9d30c34d8b702e586a0474605b3a189511482b9d5ed0d20c867515d22749537f7bc546256c6014f3ebdcec
@@ -6800,6 +6814,18 @@ fsevents@~2.1.1:
   peerDependencies:
     hardhat: ^2.0.0
   checksum: ed1e627a1e87d5d65ef5e34d97b486c4aa8c74efac117e52f27d2e05760e03ab2fb3afe9a11760269118b0536dd7467e5c3fcc0760bc9f01f096d0d1cfa270e2
+  languageName: node
+  linkType: hard
+
+"hardhat-contract-sizer@npm:^2.1.1":
+  version: 2.1.1
+  resolution: "hardhat-contract-sizer@npm:2.1.1"
+  dependencies:
+    cli-table3: ^0.6.0
+    colors: ^1.4.0
+  peerDependencies:
+    hardhat: ^2.0.0
+  checksum: 7d94506b6e46af1b7bc610f409c73f01c8968643ecc9aa282a723e66fb8d4798df9bf341969dd58c58e196bf912f2ecaedce33cb024d18992ac58fb196340383
   languageName: node
   linkType: hard
 
@@ -11358,6 +11384,7 @@ resolve@1.17.0:
     fs-extra: ^10.0.0
     hardhat: ^2.6.4
     hardhat-abi-exporter: ^2.3.0
+    hardhat-contract-sizer: ^2.1.1
     hardhat-deploy-ethers: ^0.3.0-beta.11
     hardhat-gas-reporter: ^1.0.4
     husky: ^6.0.0

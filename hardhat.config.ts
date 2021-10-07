@@ -34,18 +34,6 @@ if (!process.env.ALCHEMY_API_URL_MAINNET) {
 
 const config: HardhatUserConfig = {
   defaultNetwork: 'hardhat',
-  gasReporter: {
-    currency: 'USD',
-    enabled: process.env.REPORT_GAS ? true : false,
-    excludeContracts: [],
-    src: './contracts',
-  },
-  abiExporter: {
-    path: 'abis/',
-    clear: true,
-    flat: true,
-    spacing: 2,
-  },
   networks: {
     hardhat: {
       chainId: 31337,
@@ -60,14 +48,32 @@ const config: HardhatUserConfig = {
       url: alchemyApiUrlMumbai,
     },
   },
+  solidity: {
+    version: '0.8.6',
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200,
+      },
+    },
+  },
   paths: {
     artifacts: './artifacts',
     cache: './cache',
     sources: './contracts',
     tests: './test',
   },
-  solidity: {
-    version: '0.8.6',
+  gasReporter: {
+    currency: 'USD',
+    enabled: process.env.REPORT_GAS ? true : false,
+    excludeContracts: [],
+    src: './contracts',
+  },
+  abiExporter: {
+    path: 'abis/',
+    clear: true,
+    flat: true,
+    spacing: 2,
   },
   typechain: {
     outDir: 'typechain',
