@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import hre from 'hardhat';
+import hre, { ethers } from 'hardhat';
 import { BigNumber } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
@@ -9,6 +9,7 @@ import { Tokens } from './constants';
 
 describe('Rift Pool Unit tests', () => {
   const fixedRate = BigNumber.from('10');
+  const maxEth = ethers.utils.parseEther('10');
 
   let admin: SignerWithAddress;
 
@@ -27,7 +28,7 @@ describe('Rift Pool Unit tests', () => {
     sushi = await getERC20(Tokens.Sushi.address);
 
     // rift contract setup
-    vault = await deployVault(admin, fixedRate);
+    vault = await deployVault(admin, fixedRate, maxEth);
     pool = await deployPool(admin, vault, sushi);
   });
 

@@ -10,22 +10,23 @@ describe('Rift Vault Unit tests', () => {
   const tokenName = 'RIFT - Fixed Rate ETH';
   const tokenSymbol = 'frETH';
   const fixedRate = BigNumber.from('10');
-  const ethDeposit = ethers.utils.parseEther('10');
+  const ethDepositAmount = ethers.utils.parseEther('8');
+  const maxEth = ethers.utils.parseEther('10');
+  const newMaxEth = ethers.utils.parseEther('20');
 
   let admin: SignerWithAddress;
   let alice: SignerWithAddress;
+  let bob: SignerWithAddress;
 
   let vault: Vault;
 
   before(async () => {
     // account setup
     const signers: SignerWithAddress[] = await hre.ethers.getSigners();
-
-    admin = signers[0];
-    alice = signers[1];
+    [admin, alice, bob] = signers;
 
     // contract setup
-    vault = await deployVault(admin, fixedRate);
+    vault = await deployVault(admin, fixedRate, maxEth);
   });
 
   describe('Deployment', async () => {
@@ -36,6 +37,11 @@ describe('Rift Vault Unit tests', () => {
 
     it('should mint no tokens on deployment', async () => {
       expect(await vault.totalSupply()).to.eq(0);
+    });
+
+    it('should correctly assign initial state variables', async () => {
+      expect(await vault.fixedRate()).to.eq(fixedRate);
+      expect(await vault.maxEth()).to.eq(maxEth);
     });
   });
 
@@ -53,9 +59,30 @@ describe('Rift Vault Unit tests', () => {
     });
 
     it('should mint user tokens on ETH deposit', async () => {
-      await vault.connect(alice).depositEth({ value: ethDeposit });
+      await vault.connect(alice).depositEth({ value: ethDepositAmount });
 
-      expect(await vault.balanceOf(alice.address)).to.eq(ethDeposit);
+      expect(await vault.balanceOf(alice.address)).to.eq(ethDepositAmount);
+      expect(await vault.provider.getBalance(vault.address)).to.eq(ethDepositAmount);
+      expect(await vault.totalSupply()).to.eq(ethDepositAmount);
+    });
+
+    it('should reject deposits that overflow maxEth', async () => {
+      await expect(vault.connect(bob).depositEth({ value: ethDepositAmount })).to.be.revertedWith(
+        'Max eth cap has been hit',
+      );
+    });
+
+    it('should allow owner to update maxEth', async () => {
+      await vault.updateMaxEth(newMaxEth);
+      expect(await vault.maxEth()).to.eq(newMaxEth);
+    });
+
+    it('should allow a user to deposit after cap has been raised', async () => {
+      await vault.connect(bob).depositEth({ value: ethDepositAmount });
+
+      expect(await vault.balanceOf(bob.address)).to.eq(ethDepositAmount);
+      expect(await vault.provider.getBalance(vault.address)).to.eq(ethDepositAmount.mul(2));
+      expect(await vault.totalSupply()).to.eq(ethDepositAmount.mul(2));
     });
 
     it('should allow owner to move to phase 1', async () => {
@@ -78,7 +105,13 @@ describe('Rift Vault Unit tests', () => {
     });
 
     it('should reject users depositing ETH', async () => {
-      await expect(vault.connect(alice).depositEth({ value: ethDeposit })).to.be.revertedWith(
+      await expect(vault.connect(alice).depositEth({ value: ethDepositAmount })).to.be.revertedWith(
+        'Cannot execute this function during current phase',
+      );
+    });
+
+    it('should reject owner updating maxEth', async () => {
+      await expect(vault.updateMaxEth(newMaxEth.mul(2))).to.be.revertedWith(
         'Cannot execute this function during current phase',
       );
     });
@@ -96,7 +129,13 @@ describe('Rift Vault Unit tests', () => {
     });
 
     it('should reject users depositing ETH', async () => {
-      await expect(vault.connect(alice).depositEth({ value: ethDeposit })).to.be.revertedWith(
+      await expect(vault.connect(alice).depositEth({ value: ethDepositAmount })).to.be.revertedWith(
+        'Cannot execute this function during current phase',
+      );
+    });
+
+    it('should reject owner updating maxEth', async () => {
+      await expect(vault.updateMaxEth(newMaxEth.mul(2))).to.be.revertedWith(
         'Cannot execute this function during current phase',
       );
     });
