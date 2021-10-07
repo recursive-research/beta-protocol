@@ -27,4 +27,11 @@ contract Pool is ERC20 {
         token.transferFrom(msg.sender, address(this), amount);
         _mint(msg.sender, amount);
     }
+
+    function withdrawToken(uint256 amount) external duringPhase(IVault.Phases.Two) returns (uint256 returnAmount) {
+        require(balanceOf(msg.sender) >= amount, 'Withdraw amount exceeds balance');
+        returnAmount = (token.balanceOf(address(this)) * amount) / totalSupply();
+        _burn(msg.sender, amount);
+        token.transfer(msg.sender, returnAmount);
+    }
 }
