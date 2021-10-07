@@ -4,7 +4,7 @@ import hre, { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
 import { deployPool, deployVault, getERC20, getTokens } from './utils';
-import { Pool, Vault, ERC20 } from '../typechain';
+import { Vault, ERC20, PoolMasterChef } from '../typechain';
 import { Tokens } from './constants';
 
 describe('Rift Vault Unit tests', () => {
@@ -25,7 +25,7 @@ describe('Rift Vault Unit tests', () => {
   let weth: ERC20;
 
   let vault: Vault;
-  let pool: Pool;
+  let pool: PoolMasterChef;
 
   before(async () => {
     // account setup
@@ -38,7 +38,7 @@ describe('Rift Vault Unit tests', () => {
 
     // contract setup
     vault = await deployVault(admin, fixedRate, maxEth);
-    pool = await deployPool(admin, vault, yfi);
+    pool = (await deployPool(admin, vault, yfi)) as PoolMasterChef;
   });
 
   describe('Deployment', async () => {
