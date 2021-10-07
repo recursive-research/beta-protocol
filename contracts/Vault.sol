@@ -30,6 +30,13 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH', 'frETH'), Ownable {
         _mint(msg.sender, msg.value);
     }
 
+    function withdrawEth(uint256 amount) external duringPhase(Phases.Two) returns (uint256 returnAmount) {
+        require(balanceOf(msg.sender) >= amount, 'Withdraw amount exceeds balance');
+        returnAmount = (address(this).balance * amount) / totalSupply();
+        _burn(msg.sender, amount);
+        payable(msg.sender).transfer(returnAmount);
+    }
+
     function updateMaxEth(uint256 _maxEth) external onlyOwner duringPhase(Phases.Zero) {
         maxEth = _maxEth;
     }

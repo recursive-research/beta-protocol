@@ -66,6 +66,12 @@ describe('Rift Vault Unit tests', () => {
       expect(await vault.totalSupply()).to.eq(ethDepositAmount);
     });
 
+    it('should reject withdraw', async () => {
+      await expect(vault.connect(alice).withdrawEth(ethDepositAmount)).to.be.revertedWith(
+        'Cannot execute this function during current phase',
+      );
+    });
+
     it('should reject deposits that overflow maxEth', async () => {
       await expect(vault.connect(bob).depositEth({ value: ethDepositAmount })).to.be.revertedWith(
         'Max eth cap has been hit',
@@ -110,6 +116,12 @@ describe('Rift Vault Unit tests', () => {
       );
     });
 
+    it('should reject withdraw', async () => {
+      await expect(vault.connect(alice).withdrawEth(ethDepositAmount)).to.be.revertedWith(
+        'Cannot execute this function during current phase',
+      );
+    });
+
     it('should reject owner updating maxEth', async () => {
       await expect(vault.updateMaxEth(newMaxEth.mul(2))).to.be.revertedWith(
         'Cannot execute this function during current phase',
@@ -138,6 +150,18 @@ describe('Rift Vault Unit tests', () => {
       await expect(vault.updateMaxEth(newMaxEth.mul(2))).to.be.revertedWith(
         'Cannot execute this function during current phase',
       );
+    });
+
+    it('should reject withdraw when withdraw amount exceeds balance', async () => {
+      await expect(vault.connect(alice).withdrawEth(ethDepositAmount.mul(2))).to.be.revertedWith(
+        'Withdraw amount exceeds balance',
+      );
+    });
+
+    it('should allow users to withdraw proportional share', async () => {
+      await vault.connect(alice).withdrawEth(ethDepositAmount);
+      expect(await vault.balanceOf(alice.address)).to.eq(0);
+      expect(await vault.provider.getBalance(vault.address)).to.eq(ethDepositAmount);
     });
   });
 });
