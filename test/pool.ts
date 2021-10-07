@@ -223,11 +223,11 @@ describe('Rift Pool Unit tests', () => {
       it('Alcx Withdraws', async () => {
         const poolAlcxBalance = await alcx.balanceOf(alcxPool.address);
         const stakingTokenTotalSupply = await alcxPool.totalSupply();
-        const bobStakingTokenBalance = await alcxPool.balanceOf(charlie.address);
+        const charlieStakingTokenBalance = await alcxPool.balanceOf(charlie.address);
 
-        await alcxPool.connect(charlie).withdrawToken(bobStakingTokenBalance);
+        await alcxPool.connect(charlie).withdrawToken(charlieStakingTokenBalance);
 
-        const charlieAlcxBalanceExpected = poolAlcxBalance.mul(bobStakingTokenBalance).div(stakingTokenTotalSupply);
+        const charlieAlcxBalanceExpected = poolAlcxBalance.mul(charlieStakingTokenBalance).div(stakingTokenTotalSupply);
 
         expect(await alcx.balanceOf(charlie.address)).to.eq(charlieAlcxBalanceExpected);
         expect(await alcxPool.balanceOf(charlie.address)).to.eq(0);
