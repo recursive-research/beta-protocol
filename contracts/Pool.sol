@@ -10,8 +10,6 @@ import './interfaces/IVault.sol';
 import './interfaces/IWETH.sol';
 import './libraries/UniswapV2Library.sol';
 
-import 'hardhat/console.sol';
-
 contract Pool is ERC20 {
     address public constant sushi = 0x6B3595068778DD592e39A122f4f5a5cF09C90fE2;
     address public constant sushiFactory = 0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac;
