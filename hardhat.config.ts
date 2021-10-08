@@ -18,11 +18,11 @@ if (!process.env.PRIVATE_KEY) {
   privateKey = process.env.PRIVATE_KEY;
 }
 
-let alchemyApiUrlMumbai: string;
-if (!process.env.ALCHEMY_API_URL_MUMBAI) {
+let alchemyApiUrlKovan: string;
+if (!process.env.ALCHEMY_API_URL_KOVAN) {
   throw new Error('Please set your ALCHEMY_API_URL_MUMBAI in a .env file');
 } else {
-  alchemyApiUrlMumbai = process.env.ALCHEMY_API_URL_MUMBAI;
+  alchemyApiUrlKovan = process.env.ALCHEMY_API_URL_KOVAN;
 }
 
 let alchemyApiUrlMainnet: string;
@@ -42,10 +42,10 @@ const config: HardhatUserConfig = {
         blockNumber: 13000000, // post-london
       },
     },
-    mumbai: {
-      chainId: 80001,
+    kovan: {
+      chainId: 42,
       accounts: [privateKey],
-      url: alchemyApiUrlMumbai,
+      url: alchemyApiUrlKovan,
     },
   },
   solidity: {
