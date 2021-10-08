@@ -3,8 +3,17 @@ import { ethers } from 'hardhat';
 import { BigNumber } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
-import { IMasterChef, Vault, ERC20, IMasterChefV2, Pool } from '../typechain';
-import { deployVault, deployPool, getERC20, getTokens, getMasterChef, getMasterChefV2, mineBlocks } from './utils';
+import { IMasterChef, Vault, ERC20, IMasterChefV2, Pool, PoolV2Mock } from '../typechain';
+import {
+  deployVault,
+  deployPool,
+  getERC20,
+  getTokens,
+  getMasterChef,
+  getMasterChefV2,
+  mineBlocks,
+  deployPoolV2,
+} from './utils';
 import { getMasterChefPid, Tokens } from './constants';
 
 describe('Rift Pool Unit tests', () => {
@@ -88,8 +97,8 @@ describe('Rift Pool Unit tests', () => {
       );
     });
 
-    describe('should mint pool tokens to user on deposit', async () => {
-      it('YFI (Master Chef V1)', async () => {
+    describe('Deposits', async () => {
+      it('should mint pool staking tokens on yfi deposit', async () => {
         await getTokens(alice, yfi, yfiDepositAmount);
         await yfi.connect(alice).approve(yfiPool.address, yfiDepositAmount);
         await yfiPool.connect(alice).depositToken(yfiDepositAmount);
@@ -99,7 +108,7 @@ describe('Rift Pool Unit tests', () => {
         expect(await yfiPool.totalSupply()).to.eq(yfiDepositAmount);
       });
 
-      it('Aave (Master Chef V1)', async () => {
+      it('should mint pool staking tokens on aave deposit', async () => {
         await getTokens(bob, aave, aaveDepositAmount);
         await aave.connect(bob).approve(aavePool.address, aaveDepositAmount);
         await aavePool.connect(bob).depositToken(aaveDepositAmount);
@@ -109,7 +118,7 @@ describe('Rift Pool Unit tests', () => {
         expect(await aavePool.totalSupply()).to.eq(aaveDepositAmount);
       });
 
-      it('ALCX (Master Chef V2)', async () => {
+      it('should mint pool staking tokens on yfi deposit', async () => {
         await getTokens(charlie, alcx, alcxDepositAmount);
         await alcx.connect(charlie).approve(alcxPool.address, alcxDepositAmount);
         await alcxPool.connect(charlie).depositToken(alcxDepositAmount);
@@ -149,7 +158,7 @@ describe('Rift Pool Unit tests', () => {
     });
 
     describe('Pair Vaults liquidity', async () => {
-      it('should have master chef balances for yfi-eth', async () => {
+      it('should pair and update master chef v1 balances for yfi-eth', async () => {
         await vault.pairLiquidityPool(yfiPool.address, yfiEthAllocation);
 
         const lpTokensReceived = await yfiPool.lpTokenBalance();
@@ -158,7 +167,7 @@ describe('Rift Pool Unit tests', () => {
         expect(yfiInfo.amount).to.eq(lpTokensReceived);
       });
 
-      it('should have master chef balances for aave-weth', async () => {
+      it('should pair and update master chef v1 balances for aave-weth', async () => {
         await vault.pairLiquidityPool(aavePool.address, aaveEthAllocation);
 
         const lpTokensReceived = await aavePool.lpTokenBalance();
@@ -167,7 +176,7 @@ describe('Rift Pool Unit tests', () => {
         expect(aaveInfo.amount).to.eq(lpTokensReceived);
       });
 
-      it('should have master chef v2 balances for alcx-weth', async () => {
+      it('should pair and update master chef v2 balances for alcx-weth', async () => {
         await vault.pairLiquidityPool(alcxPool.address, alcxEthAllocation);
 
         const lpTokensReceived = await alcxPool.lpTokenBalance();
@@ -222,22 +231,23 @@ describe('Rift Pool Unit tests', () => {
       );
     });
 
-    describe('should allow users to withdraw proportional share', async () => {
-      it('YFI Withdraws', async () => {
+    describe('Withdraw', async () => {
+      it('should allow users to withdraw part of their balance', async () => {
         const poolYfiBalance = await yfi.balanceOf(yfiPool.address);
         const stakingTokenTotalSupply = await yfiPool.totalSupply();
         const aliceStakingTokenBalance = await yfiPool.balanceOf(alice.address);
+        const aliceWithdrawAmount = aliceStakingTokenBalance.div(2); // withdraw half, migrate half
 
-        await yfiPool.connect(alice).withdrawToken(aliceStakingTokenBalance);
+        await yfiPool.connect(alice).withdrawToken(aliceWithdrawAmount);
 
-        const aliceYfiBalanceExpected = poolYfiBalance.mul(aliceStakingTokenBalance).div(stakingTokenTotalSupply);
+        const aliceYfiBalanceExpected = poolYfiBalance.mul(aliceWithdrawAmount).div(stakingTokenTotalSupply);
 
         expect(await yfi.balanceOf(alice.address)).to.eq(aliceYfiBalanceExpected);
-        expect(await yfiPool.balanceOf(alice.address)).to.eq(0);
+        expect(await yfiPool.balanceOf(alice.address)).to.eq(aliceStakingTokenBalance.sub(aliceWithdrawAmount));
         expect(await yfi.balanceOf(yfiPool.address)).to.eq(poolYfiBalance.sub(aliceYfiBalanceExpected));
       });
 
-      it('Aave Withdraws', async () => {
+      it('should allow users to withdraw their full balance', async () => {
         const poolAaveBalance = await aave.balanceOf(aavePool.address);
         const stakingTokenTotalSupply = await aavePool.totalSupply();
         const bobStakingTokenBalance = await aavePool.balanceOf(bob.address);
@@ -251,7 +261,7 @@ describe('Rift Pool Unit tests', () => {
         expect(await aave.balanceOf(aavePool.address)).to.eq(poolAaveBalance.sub(bobAaveBalanceExpected));
       });
 
-      it('Alcx Withdraws', async () => {
+      it('should allow users to withdraw their full balance', async () => {
         const poolAlcxBalance = await alcx.balanceOf(alcxPool.address);
         const stakingTokenTotalSupply = await alcxPool.totalSupply();
         const charlieStakingTokenBalance = await alcxPool.balanceOf(charlie.address);
@@ -263,6 +273,31 @@ describe('Rift Pool Unit tests', () => {
         expect(await alcx.balanceOf(charlie.address)).to.eq(charlieAlcxBalanceExpected);
         expect(await alcxPool.balanceOf(charlie.address)).to.eq(0);
         expect(await alcx.balanceOf(alcxPool.address)).to.eq(poolAlcxBalance.sub(charlieAlcxBalanceExpected));
+      });
+    });
+
+    describe('Migrate to V2', async () => {
+      it('should reject migrations when amount is greater than their balance', async () => {
+        const yfiPoolV2: PoolV2Mock = await deployPoolV2(admin, yfi.address);
+        const aliceStakingTokenBalance = await yfiPool.balanceOf(alice.address);
+        await expect(
+          yfiPool.connect(alice).withdrawAndMigrate(yfiPoolV2.address, aliceStakingTokenBalance.add(1)),
+        ).to.be.revertedWith('Withdraw amount exceeds balance');
+      });
+
+      it('should allow users to migrate their liquidity to v2', async () => {
+        const yfiPoolV2: PoolV2Mock = await deployPoolV2(admin, yfi.address);
+
+        const poolYfiBalance = await yfi.balanceOf(yfiPool.address);
+        const aliceStakingTokenBalance = await yfiPool.balanceOf(alice.address);
+        const aliceYfiShare = await yfiPool.tokenShare(alice.address);
+
+        await yfiPool.connect(alice).withdrawAndMigrate(yfiPoolV2.address, aliceStakingTokenBalance);
+
+        expect(await yfiPool.balanceOf(alice.address)).to.eq(0);
+        expect(await yfi.balanceOf(yfiPool.address)).to.eq(poolYfiBalance.sub(aliceYfiShare));
+        expect(await yfi.balanceOf(yfiPoolV2.address)).to.eq(aliceYfiShare);
+        expect(await yfiPoolV2.balanceOf(alice.address)).to.eq(aliceYfiShare);
       });
     });
   });

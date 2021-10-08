@@ -61,71 +61,73 @@ describe('Rift Vault Unit tests', () => {
       expect(await vault.phase()).to.eq(0);
     });
 
-    it('should mint user tokens on ETH deposit', async () => {
-      await vault.connect(alice).depositEth({ value: ethDepositAmount });
-
-      expect(await vault.balanceOf(alice.address)).to.eq(ethDepositAmount);
-      expect(await ethers.provider.getBalance(vault.address)).to.eq(ethDepositAmount);
-      expect(await vault.totalSupply()).to.eq(ethDepositAmount);
-      expect(await vault.depositedEth()).to.eq(ethDepositAmount);
+    it('should reject maxEth updates from non owner', async () => {
+      await expect(vault.connect(alice).updateMaxEth(newMaxEth)).to.be.revertedWith('Ownable: caller is not the owner');
     });
 
-    it('should mint user tokens on wETH deposit', async () => {
-      await weth.connect(alice).deposit({ value: ethDepositAmount });
-      await weth.connect(alice).approve(vault.address, ethDepositAmount);
-      await vault.connect(alice).depositWeth(ethDepositAmount);
+    describe('Deposits', async () => {
+      it('should mint user tokens on ETH deposit', async () => {
+        await vault.connect(alice).depositEth({ value: ethDepositAmount });
 
-      expect(await vault.balanceOf(alice.address)).to.eq(ethDepositAmount.mul(2));
-      expect(await weth.balanceOf(vault.address)).to.eq(ethDepositAmount);
-      expect(await vault.totalSupply()).to.eq(ethDepositAmount.mul(2));
-      expect(await vault.depositedEth()).to.eq(ethDepositAmount.mul(2));
+        expect(await vault.balanceOf(alice.address)).to.eq(ethDepositAmount);
+        expect(await ethers.provider.getBalance(vault.address)).to.eq(ethDepositAmount);
+        expect(await vault.totalSupply()).to.eq(ethDepositAmount);
+        expect(await vault.depositedEth()).to.eq(ethDepositAmount);
+      });
+
+      it('should mint user tokens on wETH deposit', async () => {
+        await weth.connect(alice).deposit({ value: ethDepositAmount });
+        await weth.connect(alice).approve(vault.address, ethDepositAmount);
+        await vault.connect(alice).depositWeth(ethDepositAmount);
+
+        expect(await vault.balanceOf(alice.address)).to.eq(ethDepositAmount.mul(2));
+        expect(await weth.balanceOf(vault.address)).to.eq(ethDepositAmount);
+        expect(await vault.totalSupply()).to.eq(ethDepositAmount.mul(2));
+        expect(await vault.depositedEth()).to.eq(ethDepositAmount.mul(2));
+      });
+
+      it('should reject eth deposits that overflow maxEth', async () => {
+        await expect(vault.connect(bob).depositEth({ value: ethDepositAmount })).to.be.revertedWith(
+          'Max eth cap has been hit',
+        );
+        expect(await vault.depositedEth()).to.eq(ethDepositAmount.mul(2));
+      });
+
+      it('should reject weth deposits that overflow maxEth', async () => {
+        await expect(vault.connect(bob).depositWeth(ethDepositAmount)).to.be.revertedWith('Max eth cap has been hit');
+        expect(await vault.depositedEth()).to.eq(ethDepositAmount.mul(2));
+      });
+
+      it('should allow owner to update maxEth', async () => {
+        await vault.updateMaxEth(newMaxEth);
+        expect(await vault.maxEth()).to.eq(newMaxEth);
+      });
+
+      it('should allow a user to deposit eth after cap has been raised', async () => {
+        await vault.connect(bob).depositEth({ value: ethDepositAmount });
+
+        expect(await vault.balanceOf(bob.address)).to.eq(ethDepositAmount);
+        expect(await ethers.provider.getBalance(vault.address)).to.eq(ethDepositAmount.mul(2));
+        expect(await vault.totalSupply()).to.eq(ethDepositAmount.mul(3));
+        expect(await vault.depositedEth()).to.eq(ethDepositAmount.mul(3));
+      });
+
+      it('should allow a user to deposit weth after cap has been raised', async () => {
+        await weth.connect(bob).deposit({ value: ethDepositAmount });
+        await weth.connect(bob).approve(vault.address, ethDepositAmount);
+        await vault.connect(bob).depositWeth(ethDepositAmount);
+
+        expect(await vault.balanceOf(bob.address)).to.eq(ethDepositAmount.mul(2));
+        expect(await weth.balanceOf(vault.address)).to.eq(ethDepositAmount.mul(2));
+        expect(await vault.totalSupply()).to.eq(ethDepositAmount.mul(4));
+        expect(await vault.depositedEth()).to.eq(ethDepositAmount.mul(4));
+      });
     });
 
     it('should reject withdraw', async () => {
       await expect(vault.connect(alice).withdrawEth(ethDepositAmount)).to.be.revertedWith(
         'Cannot execute this function during current phase',
       );
-    });
-
-    it('should reject eth deposits that overflow maxEth', async () => {
-      await expect(vault.connect(bob).depositEth({ value: ethDepositAmount })).to.be.revertedWith(
-        'Max eth cap has been hit',
-      );
-      expect(await vault.depositedEth()).to.eq(ethDepositAmount.mul(2));
-    });
-
-    it('should reject weth deposits that overflow maxEth', async () => {
-      await expect(vault.connect(bob).depositWeth(ethDepositAmount)).to.be.revertedWith('Max eth cap has been hit');
-      expect(await vault.depositedEth()).to.eq(ethDepositAmount.mul(2));
-    });
-
-    it('should reject maxEth updates from non owner', async () => {
-      await expect(vault.connect(alice).updateMaxEth(newMaxEth)).to.be.revertedWith('Ownable: caller is not the owner');
-    });
-
-    it('should allow owner to update maxEth', async () => {
-      await vault.updateMaxEth(newMaxEth);
-      expect(await vault.maxEth()).to.eq(newMaxEth);
-    });
-
-    it('should allow a user to deposit eth after cap has been raised', async () => {
-      await vault.connect(bob).depositEth({ value: ethDepositAmount });
-
-      expect(await vault.balanceOf(bob.address)).to.eq(ethDepositAmount);
-      expect(await ethers.provider.getBalance(vault.address)).to.eq(ethDepositAmount.mul(2));
-      expect(await vault.totalSupply()).to.eq(ethDepositAmount.mul(3));
-      expect(await vault.depositedEth()).to.eq(ethDepositAmount.mul(3));
-    });
-
-    it('should allow a user to deposit weth after cap has been raised', async () => {
-      await weth.connect(bob).deposit({ value: ethDepositAmount });
-      await weth.connect(bob).approve(vault.address, ethDepositAmount);
-      await vault.connect(bob).depositWeth(ethDepositAmount);
-
-      expect(await vault.balanceOf(bob.address)).to.eq(ethDepositAmount.mul(2));
-      expect(await weth.balanceOf(vault.address)).to.eq(ethDepositAmount.mul(2));
-      expect(await vault.totalSupply()).to.eq(ethDepositAmount.mul(4));
-      expect(await vault.depositedEth()).to.eq(ethDepositAmount.mul(4));
     });
   });
 
@@ -211,7 +213,7 @@ describe('Rift Vault Unit tests', () => {
         );
       });
 
-      it('should allow owner to unpairLiquidityPool and receive eth', async () => {
+      it('should allow owner to unpairLiquidityPool', async () => {
         const initialWethBalance = await weth.balanceOf(vault.address);
 
         await vault.unpairLiquidityPool(pool.address);
@@ -263,53 +265,58 @@ describe('Rift Vault Unit tests', () => {
       );
     });
 
-    it('should reject withdraw when withdraw amount exceeds balance', async () => {
-      const aliceStakingTokenBalance = await vault.balanceOf(alice.address);
-      await expect(vault.connect(alice).withdrawEth(aliceStakingTokenBalance.add(1))).to.be.revertedWith(
-        'Withdraw amount exceeds balance',
-      );
+    describe('Withdraw', async () => {
+      it('should reject withdraw when withdraw amount exceeds balance', async () => {
+        const aliceStakingTokenBalance = await vault.balanceOf(alice.address);
+        await expect(vault.connect(alice).withdrawEth(aliceStakingTokenBalance.add(1))).to.be.revertedWith(
+          'Withdraw amount exceeds balance',
+        );
+      });
+
+      it('should allow users to withdraw proportional share', async () => {
+        const vaultEthBalance = await ethers.provider.getBalance(vault.address);
+        const stakingTokenTotalSupply = await vault.totalSupply();
+        const aliceStakingTokenBalance = await vault.balanceOf(alice.address);
+        const aliceWithdrawAmount = aliceStakingTokenBalance.div(2); // withdraw half, migrate half to v2
+        const aliceEthBalanceInitial = await ethers.provider.getBalance(alice.address);
+
+        await vault.connect(alice).withdrawEth(aliceWithdrawAmount);
+
+        const aliceEthBalanceFinal = await ethers.provider.getBalance(alice.address);
+        const aliceEthBalanceIncrease = aliceEthBalanceFinal.sub(aliceEthBalanceInitial);
+        const aliceEthShare = vaultEthBalance.mul(aliceWithdrawAmount).div(stakingTokenTotalSupply);
+
+        expect(aliceEthBalanceIncrease).to.be.gt(aliceEthShare.mul(99).div(100));
+        expect(await vault.balanceOf(alice.address)).to.eq(aliceStakingTokenBalance.sub(aliceWithdrawAmount));
+        expect(await ethers.provider.getBalance(vault.address)).to.eq(vaultEthBalance.sub(aliceEthShare));
+      });
     });
 
-    it('should allow users to withdraw proportional share', async () => {
-      const vaultEthBalance = await ethers.provider.getBalance(vault.address);
-      const stakingTokenTotalSupply = await vault.totalSupply();
-      const aliceStakingTokenBalance = await vault.balanceOf(alice.address);
-      const aliceWithdrawAmount = aliceStakingTokenBalance.div(2); // withdraw half, migrate half to v2
-      const aliceEthBalanceInitial = await ethers.provider.getBalance(alice.address);
+    describe('Migrations to V2', async () => {
+      it('should reject migration to v2 when amount exceeds balance', async () => {
+        const vaultV2: VaultV2Mock = await deployVaultV2(admin);
+        const aliceStakingTokenBalance = await vault.balanceOf(alice.address);
 
-      await vault.connect(alice).withdrawEth(aliceWithdrawAmount);
+        await expect(
+          vault.connect(alice).withdrawAndMigrate(vaultV2.address, aliceStakingTokenBalance.add(1)),
+        ).to.be.revertedWith('Withdraw amount exceeds balance');
+      });
 
-      const aliceEthBalanceFinal = await ethers.provider.getBalance(alice.address);
-      const aliceEthBalanceIncrease = aliceEthBalanceFinal.sub(aliceEthBalanceInitial);
-      const aliceEthShare = vaultEthBalance.mul(aliceWithdrawAmount).div(stakingTokenTotalSupply);
+      it('should allow users to migrate their eth to V2', async () => {
+        const vaultV2: VaultV2Mock = await deployVaultV2(admin);
 
-      expect(aliceEthBalanceIncrease).to.be.gt(aliceEthShare.mul(99).div(100));
-      expect(await vault.balanceOf(alice.address)).to.eq(aliceStakingTokenBalance.sub(aliceWithdrawAmount));
-      expect(await ethers.provider.getBalance(vault.address)).to.eq(vaultEthBalance.sub(aliceEthShare));
-    });
+        const vaultEthBalance = await ethers.provider.getBalance(vault.address);
+        const vaultV2EthBalance = await ethers.provider.getBalance(vaultV2.address);
+        const aliceStakingTokenBalance = await vault.balanceOf(alice.address);
+        const aliceEthShare = await vault.ethShare(alice.address);
 
-    it('should reject migration to v2 when amount exceeds balance', async () => {
-      const vaultV2: VaultV2Mock = await deployVaultV2(admin);
-      const aliceStakingTokenBalance = await vault.balanceOf(alice.address);
+        await vault.connect(alice).withdrawAndMigrate(vaultV2.address, aliceStakingTokenBalance);
 
-      await expect(
-        vault.connect(alice).withdrawAndMigrate(vaultV2.address, aliceStakingTokenBalance.add(1)),
-      ).to.be.revertedWith('Withdraw amount exceeds balance');
-    });
-
-    it('should allow users to migrate their eth to V2', async () => {
-      const vaultV2: VaultV2Mock = await deployVaultV2(admin);
-
-      const vaultEthBalance = await ethers.provider.getBalance(vault.address);
-      const vaultV2EthBalance = await ethers.provider.getBalance(vaultV2.address);
-      const aliceStakingTokenBalance = await vault.balanceOf(alice.address);
-      const aliceEthShare = await vault.ethShare(alice.address);
-
-      await vault.connect(alice).withdrawAndMigrate(vaultV2.address, aliceStakingTokenBalance);
-
-      expect(await ethers.provider.getBalance(vault.address)).to.eq(vaultEthBalance.sub(aliceEthShare));
-      expect(await ethers.provider.getBalance(vaultV2.address)).to.eq(vaultV2EthBalance.add(aliceEthShare));
-      expect(await vaultV2.balanceOf(alice.address)).to.eq(aliceEthShare);
+        expect(await vault.balanceOf(alice.address)).to.eq(0);
+        expect(await ethers.provider.getBalance(vault.address)).to.eq(vaultEthBalance.sub(aliceEthShare));
+        expect(await ethers.provider.getBalance(vaultV2.address)).to.eq(vaultV2EthBalance.add(aliceEthShare));
+        expect(await vaultV2.balanceOf(alice.address)).to.eq(aliceEthShare);
+      });
     });
   });
 });

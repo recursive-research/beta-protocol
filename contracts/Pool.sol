@@ -5,6 +5,7 @@ import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import './interfaces/IMasterChef.sol';
 import './interfaces/IMasterChefV2.sol';
+import './interfaces/IPoolV2.sol';
 import './interfaces/IUniswapV2Router02.sol';
 import './interfaces/IVault.sol';
 import './interfaces/IWETH.sol';
@@ -56,20 +57,37 @@ contract Pool is ERC20 {
         pair = UniswapV2Library.pairFor(sushiFactory, _token, WETH);
     }
 
-    function depositToken(uint256 amount) external duringPhase(IVault.Phases.Zero) {
-        IERC20(token).transferFrom(msg.sender, address(this), amount);
-        _mint(msg.sender, amount);
+    function depositToken(uint256 _amount) external duringPhase(IVault.Phases.Zero) {
+        IERC20(token).transferFrom(msg.sender, address(this), _amount);
+        _mint(msg.sender, _amount);
     }
 
-    function withdrawToken(uint256 amount) external duringPhase(IVault.Phases.Two) returns (uint256 returnAmount) {
-        require(balanceOf(msg.sender) >= amount, 'Withdraw amount exceeds balance');
-        returnAmount = (IERC20(token).balanceOf(address(this)) * amount) / totalSupply();
-        _burn(msg.sender, amount);
+    function withdrawToken(uint256 _amount) external duringPhase(IVault.Phases.Two) returns (uint256 returnAmount) {
+        require(balanceOf(msg.sender) >= _amount, 'Withdraw amount exceeds balance');
+        returnAmount = (IERC20(token).balanceOf(address(this)) * _amount) / totalSupply();
+        _burn(msg.sender, _amount);
         IERC20(token).transfer(msg.sender, returnAmount);
     }
 
-    function pairLiquidity(uint256 amount) external onlyVault {
-        initialWethDeposit = amount;
+    function withdrawAndMigrate(address _poolV2, uint256 _amount)
+        external
+        duringPhase(IVault.Phases.Two)
+        returns (uint256 returnAmount)
+    {
+        require(balanceOf(msg.sender) >= _amount, 'Withdraw amount exceeds balance');
+        returnAmount = (IERC20(token).balanceOf(address(this)) * _amount) / totalSupply();
+        _burn(msg.sender, _amount);
+        IERC20(token).approve(_poolV2, returnAmount);
+        IPoolV2(_poolV2).migrateLiquidity(returnAmount, msg.sender);
+    }
+
+    function tokenShare(address _account) external view duringPhase(IVault.Phases.Two) returns (uint256 share) {
+        uint256 stakingTokenBalance = balanceOf(_account);
+        share = (IERC20(token).balanceOf(address(this)) * stakingTokenBalance) / totalSupply();
+    }
+
+    function pairLiquidity(uint256 _amount) external onlyVault {
+        initialWethDeposit = _amount;
         depositTimestamp = block.timestamp;
 
         uint256 tokenBalance = IERC20(token).balanceOf(address(this));
