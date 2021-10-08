@@ -52,8 +52,8 @@ contract Pool is ERC20 {
         uint256 _pid
     )
         ERC20(
-            string(abi.encodePacked('Rift ', ERC20(_token).name(), ' Pool')),
-            string(abi.encodePacked('rp', ERC20(_token).symbol()))
+            string(abi.encodePacked('Rift ', ERC20(_token).name(), ' Pool V1')),
+            string(abi.encodePacked('rp', ERC20(_token).symbol(), 'v1'))
         )
     {
         vault = IVault(_vaultAddress);

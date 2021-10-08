@@ -18,8 +18,8 @@ import {
 import { Addresses, getMasterChefPid, Tokens } from './constants';
 
 describe('Rift Pool Unit tests', () => {
-  const tokenName = 'Rift yearn.finance Pool';
-  const tokenSymbol = 'rpYFI';
+  const tokenName = 'Rift yearn.finance Pool V1';
+  const tokenSymbol = 'rpYFIv1';
   const fixedRate = BigNumber.from('10');
   const maxEth = ethers.utils.parseEther('50');
 
