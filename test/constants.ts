@@ -13,6 +13,11 @@ export const Contracts = {
   masterChefV2: '0xEF0881eC094552b2e128Cf945EF17a6752B4Ec5d',
 };
 
+export const Addresses = {
+  zero: '0x0000000000000000000000000000000000000000',
+  dead: '0x000000000000000000000000000000000000dEaD',
+};
+
 export function getWhale(address: string): string {
   switch (address) {
     case Tokens.aave:

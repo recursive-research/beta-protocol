@@ -14,7 +14,7 @@ import {
   mineBlocks,
   deployPoolV2,
 } from './utils';
-import { getMasterChefPid, Tokens } from './constants';
+import { Addresses, getMasterChefPid, Tokens } from './constants';
 
 describe('Rift Pool Unit tests', () => {
   const tokenName = 'Rift yearn.finance Pool';
@@ -92,7 +92,7 @@ describe('Rift Pool Unit tests', () => {
     });
 
     it('should reject withdraws', async () => {
-      await expect(yfiPool.connect(alice).withdrawToken(yfiDepositAmount)).to.be.revertedWith(
+      await expect(yfiPool.connect(alice).withdrawToken(yfiDepositAmount, Addresses.zero)).to.be.revertedWith(
         'Cannot execute this function during current phase',
       );
     });
@@ -144,7 +144,7 @@ describe('Rift Pool Unit tests', () => {
     });
 
     it('should reject withdraws', async () => {
-      await expect(yfiPool.connect(alice).withdrawToken(yfiDepositAmount)).to.be.revertedWith(
+      await expect(yfiPool.connect(alice).withdrawToken(yfiDepositAmount, Addresses.zero)).to.be.revertedWith(
         'Cannot execute this function during current phase',
       );
     });
@@ -226,7 +226,7 @@ describe('Rift Pool Unit tests', () => {
     });
 
     it('should reject withdraw when withdraw amount exceeds balance', async () => {
-      await expect(yfiPool.connect(alice).withdrawToken(yfiDepositAmount.add(1))).to.be.revertedWith(
+      await expect(yfiPool.connect(alice).withdrawToken(yfiDepositAmount.add(1), Addresses.zero)).to.be.revertedWith(
         'Withdraw amount exceeds balance',
       );
     });
@@ -238,7 +238,7 @@ describe('Rift Pool Unit tests', () => {
         const aliceStakingTokenBalance = await yfiPool.balanceOf(alice.address);
         const aliceWithdrawAmount = aliceStakingTokenBalance.div(2); // withdraw half, migrate half
 
-        await yfiPool.connect(alice).withdrawToken(aliceWithdrawAmount);
+        await yfiPool.connect(alice).withdrawToken(aliceWithdrawAmount, Addresses.zero);
 
         const aliceYfiBalanceExpected = poolYfiBalance.mul(aliceWithdrawAmount).div(stakingTokenTotalSupply);
 
@@ -252,7 +252,7 @@ describe('Rift Pool Unit tests', () => {
         const stakingTokenTotalSupply = await aavePool.totalSupply();
         const bobStakingTokenBalance = await aavePool.balanceOf(bob.address);
 
-        await aavePool.connect(bob).withdrawToken(bobStakingTokenBalance);
+        await aavePool.connect(bob).withdrawToken(bobStakingTokenBalance, Addresses.zero);
 
         const bobAaveBalanceExpected = poolAaveBalance.mul(bobStakingTokenBalance).div(stakingTokenTotalSupply);
 
@@ -266,7 +266,7 @@ describe('Rift Pool Unit tests', () => {
         const stakingTokenTotalSupply = await alcxPool.totalSupply();
         const charlieStakingTokenBalance = await alcxPool.balanceOf(charlie.address);
 
-        await alcxPool.connect(charlie).withdrawToken(charlieStakingTokenBalance);
+        await alcxPool.connect(charlie).withdrawToken(charlieStakingTokenBalance, Addresses.zero);
 
         const charlieAlcxBalanceExpected = poolAlcxBalance.mul(charlieStakingTokenBalance).div(stakingTokenTotalSupply);
 
@@ -281,7 +281,7 @@ describe('Rift Pool Unit tests', () => {
         const yfiPoolV2: PoolV2Mock = await deployPoolV2(admin, yfi.address);
         const aliceStakingTokenBalance = await yfiPool.balanceOf(alice.address);
         await expect(
-          yfiPool.connect(alice).withdrawAndMigrate(yfiPoolV2.address, aliceStakingTokenBalance.add(1)),
+          yfiPool.connect(alice).withdrawToken(aliceStakingTokenBalance.add(1), yfiPoolV2.address),
         ).to.be.revertedWith('Withdraw amount exceeds balance');
       });
 
@@ -292,7 +292,7 @@ describe('Rift Pool Unit tests', () => {
         const aliceStakingTokenBalance = await yfiPool.balanceOf(alice.address);
         const aliceYfiShare = await yfiPool.tokenShare(alice.address);
 
-        await yfiPool.connect(alice).withdrawAndMigrate(yfiPoolV2.address, aliceStakingTokenBalance);
+        await yfiPool.connect(alice).withdrawToken(aliceStakingTokenBalance, yfiPoolV2.address);
 
         expect(await yfiPool.balanceOf(alice.address)).to.eq(0);
         expect(await yfi.balanceOf(yfiPool.address)).to.eq(poolYfiBalance.sub(aliceYfiShare));

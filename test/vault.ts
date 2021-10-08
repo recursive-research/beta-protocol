@@ -5,7 +5,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
 import { deployPool, deployVault, deployVaultV2, getERC20, getTokens, getWETH, mineBlocks } from './utils';
 import { Vault, ERC20, Pool, IWETH, VaultV2Mock } from '../typechain';
-import { Tokens } from './constants';
+import { Addresses, Tokens } from './constants';
 
 describe('Rift Vault Unit tests', () => {
   const tokenName = 'RIFT - Fixed Rate ETH';
@@ -125,7 +125,7 @@ describe('Rift Vault Unit tests', () => {
     });
 
     it('should reject withdraw', async () => {
-      await expect(vault.connect(alice).withdrawEth(ethDepositAmount)).to.be.revertedWith(
+      await expect(vault.connect(alice).withdrawEth(ethDepositAmount, Addresses.zero)).to.be.revertedWith(
         'Cannot execute this function during current phase',
       );
     });
@@ -161,7 +161,7 @@ describe('Rift Vault Unit tests', () => {
     });
 
     it('should reject withdraw', async () => {
-      await expect(vault.connect(alice).withdrawEth(ethDepositAmount)).to.be.revertedWith(
+      await expect(vault.connect(alice).withdrawEth(ethDepositAmount, Addresses.zero)).to.be.revertedWith(
         'Cannot execute this function during current phase',
       );
     });
@@ -268,9 +268,9 @@ describe('Rift Vault Unit tests', () => {
     describe('Withdraw', async () => {
       it('should reject withdraw when withdraw amount exceeds balance', async () => {
         const aliceStakingTokenBalance = await vault.balanceOf(alice.address);
-        await expect(vault.connect(alice).withdrawEth(aliceStakingTokenBalance.add(1))).to.be.revertedWith(
-          'Withdraw amount exceeds balance',
-        );
+        await expect(
+          vault.connect(alice).withdrawEth(aliceStakingTokenBalance.add(1), Addresses.zero),
+        ).to.be.revertedWith('Withdraw amount exceeds balance');
       });
 
       it('should allow users to withdraw proportional share', async () => {
@@ -280,7 +280,7 @@ describe('Rift Vault Unit tests', () => {
         const aliceWithdrawAmount = aliceStakingTokenBalance.div(2); // withdraw half, migrate half to v2
         const aliceEthBalanceInitial = await ethers.provider.getBalance(alice.address);
 
-        await vault.connect(alice).withdrawEth(aliceWithdrawAmount);
+        await vault.connect(alice).withdrawEth(aliceWithdrawAmount, Addresses.zero);
 
         const aliceEthBalanceFinal = await ethers.provider.getBalance(alice.address);
         const aliceEthBalanceIncrease = aliceEthBalanceFinal.sub(aliceEthBalanceInitial);
@@ -298,7 +298,7 @@ describe('Rift Vault Unit tests', () => {
         const aliceStakingTokenBalance = await vault.balanceOf(alice.address);
 
         await expect(
-          vault.connect(alice).withdrawAndMigrate(vaultV2.address, aliceStakingTokenBalance.add(1)),
+          vault.connect(alice).withdrawEth(aliceStakingTokenBalance.add(1), vaultV2.address),
         ).to.be.revertedWith('Withdraw amount exceeds balance');
       });
 
@@ -310,7 +310,7 @@ describe('Rift Vault Unit tests', () => {
         const aliceStakingTokenBalance = await vault.balanceOf(alice.address);
         const aliceEthShare = await vault.ethShare(alice.address);
 
-        await vault.connect(alice).withdrawAndMigrate(vaultV2.address, aliceStakingTokenBalance);
+        await vault.connect(alice).withdrawEth(aliceStakingTokenBalance, vaultV2.address);
 
         expect(await vault.balanceOf(alice.address)).to.eq(0);
         expect(await ethers.provider.getBalance(vault.address)).to.eq(vaultEthBalance.sub(aliceEthShare));

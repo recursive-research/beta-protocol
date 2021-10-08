@@ -62,14 +62,7 @@ contract Pool is ERC20 {
         _mint(msg.sender, _amount);
     }
 
-    function withdrawToken(uint256 _amount) external duringPhase(IVault.Phases.Two) returns (uint256 returnAmount) {
-        require(balanceOf(msg.sender) >= _amount, 'Withdraw amount exceeds balance');
-        returnAmount = (IERC20(token).balanceOf(address(this)) * _amount) / totalSupply();
-        _burn(msg.sender, _amount);
-        IERC20(token).transfer(msg.sender, returnAmount);
-    }
-
-    function withdrawAndMigrate(address _poolV2, uint256 _amount)
+    function withdrawToken(uint256 _amount, address _poolV2)
         external
         duringPhase(IVault.Phases.Two)
         returns (uint256 returnAmount)
@@ -77,8 +70,12 @@ contract Pool is ERC20 {
         require(balanceOf(msg.sender) >= _amount, 'Withdraw amount exceeds balance');
         returnAmount = (IERC20(token).balanceOf(address(this)) * _amount) / totalSupply();
         _burn(msg.sender, _amount);
-        IERC20(token).approve(_poolV2, returnAmount);
-        IPoolV2(_poolV2).migrateLiquidity(returnAmount, msg.sender);
+        if (_poolV2 == address(0)) {
+            IERC20(token).transfer(msg.sender, returnAmount);
+        } else {
+            IERC20(token).approve(_poolV2, returnAmount);
+            IPoolV2(_poolV2).migrateLiquidity(returnAmount, msg.sender);
+        }
     }
 
     function tokenShare(address _account) external view duringPhase(IVault.Phases.Two) returns (uint256 share) {
