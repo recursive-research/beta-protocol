@@ -75,30 +75,16 @@ contract Pool is ERC20 {
         uint256 tokenBalance = IERC20(token).balanceOf(address(this));
         uint256 wETHBalance = IWETH(WETH).balanceOf(address(this));
 
-        (uint256 reserveToken, uint256 reserveWETH) = UniswapV2Library.getReserves(sushiFactory, token, WETH);
-        uint256 tokenQuote = UniswapV2Library.quote(wETHBalance, reserveWETH, reserveToken);
-
-        uint256 tokenAmount;
-        uint256 wETHAmount;
-
-        if (tokenQuote <= tokenBalance) {
-            tokenAmount = tokenQuote;
-            wETHAmount = wETHBalance;
-        } else {
-            wETHAmount = UniswapV2Library.quote(tokenBalance, reserveToken, reserveWETH);
-            tokenAmount = tokenBalance;
-        }
-
-        IERC20(token).approve(sushiRouter, tokenAmount);
-        IWETH(WETH).approve(sushiRouter, wETHAmount);
+        IERC20(token).approve(sushiRouter, tokenBalance);
+        IWETH(WETH).approve(sushiRouter, wETHBalance);
 
         (, , lpTokenBalance) = IUniswapV2Router02(sushiRouter).addLiquidity(
             token,
             WETH,
-            tokenAmount,
-            wETHAmount,
-            (tokenAmount * 99) / 100,
-            (wETHAmount * 99) / 100,
+            tokenBalance,
+            wETHBalance,
+            0,
+            0,
             address(this),
             block.timestamp
         );
