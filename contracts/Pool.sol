@@ -106,18 +106,6 @@ contract Pool is ERC20 {
             block.timestamp
         );
 
-        {
-            uint256 sushiBalance = IERC20(sushi).balanceOf(address(this));
-            IERC20(sushi).approve(sushiRouter, sushiBalance);
-            IUniswapV2Router02(sushiRouter).swapExactTokensForTokens(
-                sushiBalance,
-                0,
-                getPath(sushi, WETH),
-                address(this),
-                block.timestamp
-            );
-        }
-
         uint256 wethOwed = initialWethDeposit +
             (((initialWethDeposit * vault.fixedRate()) / 100) * (block.timestamp - depositTimestamp)) /
             (365 days);
@@ -125,26 +113,29 @@ contract Pool is ERC20 {
 
         if (wethBalance >= wethOwed) {
             IWETH(WETH).transfer(address(vault), wethOwed);
-            wethBalance = IWETH(WETH).balanceOf(address(this));
-            IWETH(WETH).approve(sushiRouter, wethBalance);
-            IUniswapV2Router02(sushiRouter).swapExactTokensForTokens(
-                wethBalance,
-                0,
-                getPath(WETH, token),
-                address(this),
-                block.timestamp
-            );
+            wethBalance -= wethOwed;
+
+            if (wethBalance > 0) {
+                IWETH(WETH).approve(sushiRouter, wethBalance);
+                IUniswapV2Router02(sushiRouter).swapExactTokensForTokens(
+                    wethBalance,
+                    0,
+                    getPath(WETH, token),
+                    address(this),
+                    block.timestamp
+                );
+            }
         } else {
             uint256 tokenBalance = IERC20(token).balanceOf(address(this));
-            uint256 ethDeficit = wethOwed - wethBalance;
+            uint256 wethDeficit = wethOwed - wethBalance;
 
             (uint256 reserveToken, uint256 reserveWETH) = UniswapV2Library.getReserves(sushiFactory, token, WETH);
-            uint256 tokenQuote = UniswapV2Library.getAmountIn(ethDeficit, reserveToken, reserveWETH);
+            uint256 tokenQuote = UniswapV2Library.getAmountIn(wethDeficit, reserveToken, reserveWETH);
 
             IERC20(token).approve(sushiRouter, tokenBalance);
             if (tokenQuote <= tokenBalance) {
                 wethBalance += IUniswapV2Router02(sushiRouter).swapTokensForExactTokens(
-                    ethDeficit,
+                    wethDeficit,
                     tokenBalance,
                     getPath(token, WETH),
                     address(this),
@@ -180,6 +171,16 @@ contract Pool is ERC20 {
         } else {
             IMasterChef(masterChef).withdraw(pid, _lpTokenBalance);
         }
+
+        uint256 sushiBalance = IERC20(sushi).balanceOf(address(this));
+        IERC20(sushi).approve(sushiRouter, sushiBalance);
+        IUniswapV2Router02(sushiRouter).swapExactTokensForTokens(
+            sushiBalance,
+            0,
+            getPath(sushi, WETH),
+            address(this),
+            block.timestamp
+        );
     }
 
     function getPath(address _from, address _to) private pure returns (address[] memory path) {
