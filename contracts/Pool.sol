@@ -19,7 +19,6 @@ contract Pool is ERC20 {
     address public constant masterChefV2 = 0xEF0881eC094552b2e128Cf945EF17a6752B4Ec5d;
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
-    bool public immutable isMasterChefV2;
     address public immutable token;
     address public immutable pair;
     uint256 public immutable pid;
@@ -28,6 +27,13 @@ contract Pool is ERC20 {
     uint256 public depositTimestamp;
     uint256 public initialWethDeposit;
     uint256 public lpTokenBalance;
+
+    enum SushiRewarder {
+        None,
+        MasterChef,
+        MasterChefV2
+    }
+    SushiRewarder public immutable sushiRewarder;
 
     modifier duringPhase(IVault.Phases _phase) {
         require(vault.phase() == _phase, 'Cannot execute this function during current phase');
@@ -42,8 +48,8 @@ contract Pool is ERC20 {
     constructor(
         address _vaultAddress,
         address _token,
-        uint256 _pid,
-        bool _isMasterChefV2
+        uint256 _sushiRewarder,
+        uint256 _pid
     )
         ERC20(
             string(abi.encodePacked('Rift ', ERC20(_token).name(), ' Pool')),
@@ -53,7 +59,7 @@ contract Pool is ERC20 {
         vault = IVault(_vaultAddress);
         token = _token;
         pid = _pid;
-        isMasterChefV2 = _isMasterChefV2;
+        sushiRewarder = SushiRewarder(_sushiRewarder);
         pair = UniswapV2Library.pairFor(sushiFactory, _token, WETH);
     }
 
@@ -171,20 +177,24 @@ contract Pool is ERC20 {
     }
 
     function stake(uint256 _lpTokenBalance) internal virtual {
-        if (isMasterChefV2) {
-            IERC20(pair).approve(masterChefV2, _lpTokenBalance);
-            IMasterChefV2(masterChefV2).deposit(pid, _lpTokenBalance, address(this));
-        } else {
+        if (sushiRewarder == SushiRewarder.None) {
+            return;
+        } else if (sushiRewarder == SushiRewarder.MasterChef) {
             IERC20(pair).approve(masterChef, _lpTokenBalance);
             IMasterChef(masterChef).deposit(pid, _lpTokenBalance);
+        } else {
+            IERC20(pair).approve(masterChefV2, _lpTokenBalance);
+            IMasterChefV2(masterChefV2).deposit(pid, _lpTokenBalance, address(this));
         }
     }
 
     function unstake(uint256 _lpTokenBalance) internal virtual {
-        if (isMasterChefV2) {
-            IMasterChefV2(masterChefV2).withdrawAndHarvest(pid, _lpTokenBalance, address(this));
-        } else {
+        if (sushiRewarder == SushiRewarder.None) {
+            return;
+        } else if (sushiRewarder == SushiRewarder.MasterChef) {
             IMasterChef(masterChef).withdraw(pid, _lpTokenBalance);
+        } else {
+            IMasterChefV2(masterChefV2).withdrawAndHarvest(pid, _lpTokenBalance, address(this));
         }
 
         uint256 sushiBalance = IERC20(sushi).balanceOf(address(this));

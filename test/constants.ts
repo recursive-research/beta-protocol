@@ -44,18 +44,17 @@ export function getMasterChefPid(address: string): BigNumber {
     case Tokens.alcx:
       return BigNumber.from('0');
     default:
-      return BigNumber.from('9999');
+      return BigNumber.from('0');
   }
 }
 
-export function isMasterChefV2(address: string): boolean {
+export function getSushiRewarder(address: string): BigNumber {
   switch (address) {
     case Tokens.yfi:
-    case Tokens.aave:
-      return false;
+      return BigNumber.from(1); // Master Chef
     case Tokens.alcx:
-      return true;
+      return BigNumber.from(2); // Master Chef V2
     default:
-      return false;
+      return BigNumber.from(0); // None
   }
 }
