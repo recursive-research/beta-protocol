@@ -8,8 +8,8 @@ import { Vault, ERC20, Pool, IWETH, VaultV2Mock } from '../typechain';
 import { Addresses, Tokens } from './constants';
 
 describe('Rift Vault Unit tests', () => {
-  const tokenName = 'RIFT - Fixed Rate ETH';
-  const tokenSymbol = 'riftETH';
+  const tokenName = 'RIFT - Fixed Rate ETH V1';
+  const tokenSymbol = 'riftETHv1';
   const fixedRate = BigNumber.from('10');
   const ethDepositAmount = ethers.utils.parseEther('4');
   const yfiDepositAmount = ethers.utils.parseEther('100');
