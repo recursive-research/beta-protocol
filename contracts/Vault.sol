@@ -3,6 +3,7 @@ pragma solidity 0.8.6;
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import './interfaces/IPool.sol';
+import './interfaces/IVaultV2.sol';
 import './interfaces/IWETH.sol';
 
 contract Vault is ERC20('RIFT - Fixed Rate ETH', 'riftETH'), Ownable {
@@ -47,6 +48,22 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH', 'riftETH'), Ownable {
         returnAmount = (address(this).balance * _amount) / totalSupply();
         _burn(msg.sender, _amount);
         payable(msg.sender).transfer(returnAmount);
+    }
+
+    function withdrawAndMigrate(address _vaultV2, uint256 _amount)
+        external
+        duringPhase(Phases.Two)
+        returns (uint256 returnAmount)
+    {
+        require(balanceOf(msg.sender) >= _amount, 'Withdraw amount exceeds balance');
+        returnAmount = (address(this).balance * _amount) / totalSupply();
+        _burn(msg.sender, _amount);
+        IVaultV2(_vaultV2).migrateLiquidity{ value: returnAmount }(msg.sender);
+    }
+
+    function ethShare(address _account) external view duringPhase(Phases.Two) returns (uint256 share) {
+        uint256 stakingTokenBalance = balanceOf(_account);
+        share = (address(this).balance * stakingTokenBalance) / totalSupply();
     }
 
     function pairLiquidityPool(address _pool, uint256 _amount) external onlyOwner {

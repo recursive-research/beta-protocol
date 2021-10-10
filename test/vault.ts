@@ -3,8 +3,8 @@ import { BigNumber } from 'ethers';
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
-import { deployPool, deployVault, getERC20, getTokens, getWETH, mineBlocks } from './utils';
-import { Vault, ERC20, Pool, IWETH } from '../typechain';
+import { deployPool, deployVault, deployVaultV2, getERC20, getTokens, getWETH, mineBlocks } from './utils';
+import { Vault, ERC20, Pool, IWETH, VaultV2Mock } from '../typechain';
 import { Tokens } from './constants';
 
 describe('Rift Vault Unit tests', () => {
@@ -274,17 +274,42 @@ describe('Rift Vault Unit tests', () => {
       const vaultEthBalance = await ethers.provider.getBalance(vault.address);
       const stakingTokenTotalSupply = await vault.totalSupply();
       const aliceStakingTokenBalance = await vault.balanceOf(alice.address);
+      const aliceWithdrawAmount = aliceStakingTokenBalance.div(2); // withdraw half, migrate half to v2
       const aliceEthBalanceInitial = await ethers.provider.getBalance(alice.address);
 
-      await vault.connect(alice).withdrawEth(aliceStakingTokenBalance);
+      await vault.connect(alice).withdrawEth(aliceWithdrawAmount);
 
       const aliceEthBalanceFinal = await ethers.provider.getBalance(alice.address);
       const aliceEthBalanceIncrease = aliceEthBalanceFinal.sub(aliceEthBalanceInitial);
-      const aliceEthShare = vaultEthBalance.mul(aliceStakingTokenBalance).div(stakingTokenTotalSupply);
+      const aliceEthShare = vaultEthBalance.mul(aliceWithdrawAmount).div(stakingTokenTotalSupply);
 
       expect(aliceEthBalanceIncrease).to.be.gt(aliceEthShare.mul(99).div(100));
-      expect(await vault.balanceOf(alice.address)).to.eq(0);
+      expect(await vault.balanceOf(alice.address)).to.eq(aliceStakingTokenBalance.sub(aliceWithdrawAmount));
       expect(await ethers.provider.getBalance(vault.address)).to.eq(vaultEthBalance.sub(aliceEthShare));
+    });
+
+    it('should reject migration to v2 when amount exceeds balance', async () => {
+      const vaultV2: VaultV2Mock = await deployVaultV2(admin);
+      const aliceStakingTokenBalance = await vault.balanceOf(alice.address);
+
+      await expect(
+        vault.connect(alice).withdrawAndMigrate(vaultV2.address, aliceStakingTokenBalance.add(1)),
+      ).to.be.revertedWith('Withdraw amount exceeds balance');
+    });
+
+    it('should allow users to migrate their eth to V2', async () => {
+      const vaultV2: VaultV2Mock = await deployVaultV2(admin);
+
+      const vaultEthBalance = await ethers.provider.getBalance(vault.address);
+      const vaultV2EthBalance = await ethers.provider.getBalance(vaultV2.address);
+      const aliceStakingTokenBalance = await vault.balanceOf(alice.address);
+      const aliceEthShare = await vault.ethShare(alice.address);
+
+      await vault.connect(alice).withdrawAndMigrate(vaultV2.address, aliceStakingTokenBalance);
+
+      expect(await ethers.provider.getBalance(vault.address)).to.eq(vaultEthBalance.sub(aliceEthShare));
+      expect(await ethers.provider.getBalance(vaultV2.address)).to.eq(vaultV2EthBalance.add(aliceEthShare));
+      expect(await vaultV2.balanceOf(alice.address)).to.eq(aliceEthShare);
     });
   });
 });
