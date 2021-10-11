@@ -5,7 +5,7 @@ import { Artifact } from 'hardhat/types';
 
 import { ERC20, IMasterChef, IMasterChefV2, Vault, VaultV2Mock, Pool, PoolV2Mock, IWETH } from '../typechain';
 import { deployContract } from 'ethereum-waffle';
-import { Contracts, getMasterChefPid, isMasterChefV2, getWhale, Tokens } from './constants';
+import { Contracts, getMasterChefPid, getSushiRewarder, getWhale, Tokens } from './constants';
 
 // Helper functions to deploy contracts
 export async function deployVault(admin: SignerWithAddress, fixedRate: BigNumber, maxEth: BigNumber): Promise<Vault> {
@@ -23,8 +23,8 @@ export async function deployPool(admin: SignerWithAddress, vault: Vault, token: 
   return (await deployContract(admin, poolArtifact, [
     vault.address,
     token.address,
+    getSushiRewarder(token.address),
     getMasterChefPid(token.address),
-    isMasterChefV2(token.address),
   ])) as Pool;
 }
 

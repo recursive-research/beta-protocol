@@ -6,7 +6,7 @@ import './interfaces/IPool.sol';
 import './interfaces/IVaultV2.sol';
 import './interfaces/IWETH.sol';
 
-contract Vault is ERC20('RIFT - Fixed Rate ETH', 'riftETH'), Ownable {
+contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     uint256 public depositedEth;
     uint256 public fixedRate;
