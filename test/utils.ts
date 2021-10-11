@@ -3,7 +3,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { BigNumber } from 'ethers';
 import { Artifact } from 'hardhat/types';
 
-import { ERC20, IMasterChef, IMasterChefV2, Vault, VaultV2Mock, Pool, IWETH } from '../typechain';
+import { ERC20, IMasterChef, IMasterChefV2, Vault, VaultV2Mock, Pool, PoolV2Mock, IWETH } from '../typechain';
 import { deployContract } from 'ethereum-waffle';
 import { Contracts, getMasterChefPid, isMasterChefV2, getWhale, Tokens } from './constants';
 
@@ -26,6 +26,11 @@ export async function deployPool(admin: SignerWithAddress, vault: Vault, token: 
     getMasterChefPid(token.address),
     isMasterChefV2(token.address),
   ])) as Pool;
+}
+
+export async function deployPoolV2(admin: SignerWithAddress, address: string): Promise<PoolV2Mock> {
+  const poolArtifact: Artifact = await hre.artifacts.readArtifact('PoolV2Mock');
+  return (await deployContract(admin, poolArtifact, [address])) as PoolV2Mock;
 }
 
 // Helper function to get existing contracts
