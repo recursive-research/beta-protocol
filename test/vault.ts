@@ -79,7 +79,6 @@ describe('Rift Vault Unit tests', () => {
         expect(await vault.balanceOf(alice.address)).to.eq(ethDepositAmount);
         expect(await ethers.provider.getBalance(vault.address)).to.eq(ethDepositAmount);
         expect(await vault.totalSupply()).to.eq(ethDepositAmount);
-        expect(await vault.depositedEth()).to.eq(ethDepositAmount);
       });
 
       it('should mint user tokens on wETH deposit', async () => {
@@ -90,19 +89,18 @@ describe('Rift Vault Unit tests', () => {
         expect(await vault.balanceOf(alice.address)).to.eq(ethDepositAmount.mul(2));
         expect(await weth.balanceOf(vault.address)).to.eq(ethDepositAmount);
         expect(await vault.totalSupply()).to.eq(ethDepositAmount.mul(2));
-        expect(await vault.depositedEth()).to.eq(ethDepositAmount.mul(2));
       });
 
       it('should reject eth deposits that overflow maxEth', async () => {
         await expect(vault.connect(bob).depositEth({ value: ethDepositAmount })).to.be.revertedWith(
           'Max eth cap has been hit',
         );
-        expect(await vault.depositedEth()).to.eq(ethDepositAmount.mul(2));
+        expect(await vault.totalSupply()).to.eq(ethDepositAmount.mul(2));
       });
 
       it('should reject weth deposits that overflow maxEth', async () => {
         await expect(vault.connect(bob).depositWeth(ethDepositAmount)).to.be.revertedWith('Max eth cap has been hit');
-        expect(await vault.depositedEth()).to.eq(ethDepositAmount.mul(2));
+        expect(await vault.totalSupply()).to.eq(ethDepositAmount.mul(2));
       });
 
       it('should allow owner to update maxEth', async () => {
@@ -116,7 +114,6 @@ describe('Rift Vault Unit tests', () => {
         expect(await vault.balanceOf(bob.address)).to.eq(ethDepositAmount);
         expect(await ethers.provider.getBalance(vault.address)).to.eq(ethDepositAmount.mul(2));
         expect(await vault.totalSupply()).to.eq(ethDepositAmount.mul(3));
-        expect(await vault.depositedEth()).to.eq(ethDepositAmount.mul(3));
       });
 
       it('should allow a user to deposit weth after cap has been raised', async () => {
@@ -127,7 +124,6 @@ describe('Rift Vault Unit tests', () => {
         expect(await vault.balanceOf(bob.address)).to.eq(ethDepositAmount.mul(2));
         expect(await weth.balanceOf(vault.address)).to.eq(ethDepositAmount.mul(2));
         expect(await vault.totalSupply()).to.eq(ethDepositAmount.mul(4));
-        expect(await vault.depositedEth()).to.eq(ethDepositAmount.mul(4));
       });
     });
 

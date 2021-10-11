@@ -10,7 +10,6 @@ import './interfaces/IWETH.sol';
 /// @notice allows users to deposit eth, which will deployed to various pools to earn a return during a period.
 contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-    uint256 public depositedEth;
     /// @notice the fixed rate that Pools are required to return to the Vault at the end of the period.
     /// Modifiable by owner.
     uint256 public fixedRate;
@@ -44,15 +43,13 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
 
     /// @notice allows users to deposit ETH during Phase zero and receive a staking token 1:1
     function depositEth() external payable duringPhase(Phases.Zero) {
-        depositedEth += msg.value;
-        require(depositedEth <= maxEth, 'Max eth cap has been hit');
+        require(totalSupply() + msg.value <= maxEth, 'Max eth cap has been hit');
         _mint(msg.sender, msg.value);
     }
 
     /// @notice allows users to deposit WETH during Phase zero and receive a staking token 1:1
     function depositWeth(uint256 _amount) external duringPhase(Phases.Zero) {
-        depositedEth += _amount;
-        require(depositedEth <= maxEth, 'Max eth cap has been hit');
+        require(totalSupply() + _amount <= maxEth, 'Max eth cap has been hit');
         IWETH(WETH).transferFrom(msg.sender, address(this), _amount);
         _mint(msg.sender, _amount);
     }
