@@ -13,6 +13,11 @@ export const Contracts = {
   masterChefV2: '0xEF0881eC094552b2e128Cf945EF17a6752B4Ec5d',
 };
 
+export const Addresses = {
+  zero: '0x0000000000000000000000000000000000000000',
+  dead: '0x000000000000000000000000000000000000dEaD',
+};
+
 export function getWhale(address: string): string {
   switch (address) {
     case Tokens.aave:
@@ -39,18 +44,17 @@ export function getMasterChefPid(address: string): BigNumber {
     case Tokens.alcx:
       return BigNumber.from('0');
     default:
-      return BigNumber.from('9999');
+      return BigNumber.from('0');
   }
 }
 
-export function isMasterChefV2(address: string): boolean {
+export function getSushiRewarder(address: string): BigNumber {
   switch (address) {
     case Tokens.yfi:
-    case Tokens.aave:
-      return false;
+      return BigNumber.from(1); // Master Chef
     case Tokens.alcx:
-      return true;
+      return BigNumber.from(2); // Master Chef V2
     default:
-      return false;
+      return BigNumber.from(0); // None
   }
 }
