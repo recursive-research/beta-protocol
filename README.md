@@ -2,13 +2,13 @@
 
 These are the smart contracts for Rift V1. The most important contracts are in `Vault.sol` and `Pool.sol`.
 
-These contracts work together over a period of 3 phases, and users can only execute certain actions during each phase. The Vault contract is `Ownable`, inheriting the standard `Ownable` contract from OpenZeppelin. In V1, the Vault contract owner is assumed to be a benevolent party.
+These contracts work together over a period of 3 phases, and users can only execute certain actions during each phase. The Vault contract is `Ownable`, inheriting the standard contract from OpenZeppelin. In V1, the Vault contract owner is assumed to be a benevolent party.
 
 ### Phase Zero
 
 Upon deployment, the `Vault` is in Phase Zero. Note that the `Pool`'s functionality is also restricted based on the current phase of the `Vault`.
 
-The deployer sets the `fixedRate` and a `maxEth` state variables on deployment. The `fixedRate` is a number between 1 and 100, and is the APY that Vault depositors will receive at the end of the term. `maxEth` is the total amount of `ETH` deposits that the Vault will accept. It can be modified by the contract owner.
+The Vault deployer sets the `fixedRate` and a `maxEth` state variables on deployment. The `fixedRate` is a number between 1 and 100, and is the APY that Vault depositors will receive at the end of the term. `maxEth` is the total amount of `ETH` deposits that the Vault will accept. It can be modified by the contract owner.
 
 During phase zero, users can deposit `ETH` or `WETH` into the Vault (using the `depositEth` or `depositWeth` functions), as long as their deposit doesn't cause the total amount of deposited `ETH` + `WETH` to be greater than `maxEth`. In return for their deposit, user receive an equivalent amount of the Vault's staking token. These deposits are not withdrawable until Phase Two.
 
@@ -31,7 +31,7 @@ At the beginning of Phase One, the contract owner will wrap all `ETH` deposits i
 
 The Vault owner calls this `pairLiquidity` function on several pools. The deployed liquidity will stay in these pools for a period of time to generate a return from LP-ing.
 
-At the end of this period, the Vault owner will unwind the liquidty that had been deployed by calling `unpairLiquidity` on each pool. Each pool responds by unwinding the staked SLP tokens from the `MasterChef` or `MasterChefV2` (or do nothing if not eligible), and converting the received `SUSHI` tokens into `WETH`. The Pool the withdraws its liquidity from the SushiSwap pool, and receives some amount of `WETH` and `token`. The Pool then calculates how much `WETH` is owed back to the Vault based on the Vault's fixed APY, the initial amount of `WETH` deposited, and the timestamps of deposit and withdraw. If there is enough `WETH` to pay back the fixed rate, the Pool transfer the owed `WETH` to the Vault, and swaps any remaining `WETH` for the `token`. If there is not enough `WETH` to pay back the fixed rate, the Pool swaps as much `token` as is needed to pay back the owed amount of `WETH`. In extreme cases, there may not be enough `token` to pay back the owed `WETH`, and the Pool will swap all of its remaining `token` for `WETH`, and pay back as much `WETH` as is possible. Once the `WETH` returned to the Vault, the pool swaps all remaining `WETH` to `token`.
+At the end of this period, the Vault owner will unwind the liquidty that had been deployed by calling `unpairLiquidity` on each pool. Each pool responds by unwinding the staked SLP tokens from the `MasterChef` or `MasterChefV2` (or do nothing if not eligible), and converting the received `SUSHI` tokens into `WETH`. The Pool then withdraws its liquidity from the SushiSwap pool, and receives some amount of `WETH` and `token`. The Pool then calculates how much `WETH` is owed back to the Vault based on the Vault's fixed APY, the initial amount of `WETH` deposited, and the timestamps of deposit and withdraw. If there is enough `WETH` to pay back the fixed rate, the Pool transfers the owed `WETH` to the Vault, and swaps any remaining `WETH` for the `token`. If there is not enough `WETH` to pay back the fixed rate, the Pool swaps as much `token` as is needed to pay back the owed amount of `WETH`. In extreme cases, there may not be enough `token` to pay back the owed `WETH`, and the Pool will swap all of its remaining `token` for `WETH`, and pay back as much `WETH` as is possible. The Pool now has some amount of `token` remaining in the contract.
 
 The Vault owner does this for each Pool that it deployed liquidity to at the beginning of this phase. After the Vault has recalled its liquidity from each Pool, the Vault owner will call `unwrapEth` to convert all `WETH` into `ETH`. The Vault contract now has some amount of `ETH`, and each pool has some amount of `token`.
 
