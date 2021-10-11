@@ -107,7 +107,10 @@ describe('Rift Pool Unit tests', () => {
       it('should mint pool staking tokens on tokenMC deposit', async () => {
         await getTokens(alice, tokenMC, tokenMCDepositAmount);
         await tokenMC.connect(alice).approve(tokenMCPool.address, tokenMCDepositAmount);
-        await tokenMCPool.connect(alice).depositToken(tokenMCDepositAmount);
+
+        await expect(tokenMCPool.connect(alice).depositToken(tokenMCDepositAmount))
+          .to.emit(tokenMCPool, 'Deposit')
+          .withArgs(alice.address, tokenMCDepositAmount);
 
         expect(await tokenMCPool.balanceOf(alice.address)).to.eq(tokenMCDepositAmount);
         expect(await tokenMC.balanceOf(tokenMCPool.address)).to.eq(tokenMCDepositAmount);
@@ -246,12 +249,13 @@ describe('Rift Pool Unit tests', () => {
         const pooltokenMCBalance = await tokenMC.balanceOf(tokenMCPool.address);
         const stakingTokenTotalSupply = await tokenMCPool.totalSupply();
         const aliceStakingTokenBalance = await tokenMCPool.balanceOf(alice.address);
-
-        await tokenMCPool.connect(alice).withdrawToken(Addresses.zero);
-
         const alicetokenMCBalanceExpected = pooltokenMCBalance
           .mul(aliceStakingTokenBalance)
           .div(stakingTokenTotalSupply);
+
+        await expect(tokenMCPool.connect(alice).withdrawToken(Addresses.zero))
+          .to.emit(tokenMCPool, 'Withdraw')
+          .withArgs(alice.address, alicetokenMCBalanceExpected);
 
         expect(await tokenMC.balanceOf(alice.address)).to.eq(alicetokenMCBalanceExpected);
         expect(await tokenMCPool.balanceOf(alice.address)).to.eq(0);
@@ -270,11 +274,12 @@ describe('Rift Pool Unit tests', () => {
 
       it('should allow users to migrate their liquidity to v2', async () => {
         const tokenMC2PoolV2: PoolV2Mock = await deployPoolV2(admin, tokenMC2.address);
-
         const pooltokenMC2Balance = await tokenMC2.balanceOf(tokenMC2Pool.address);
         const bobtokenMC2Share = await tokenMC2Pool.tokenShare(bob.address);
 
-        await tokenMC2Pool.connect(bob).withdrawToken(tokenMC2PoolV2.address);
+        await expect(tokenMC2Pool.connect(bob).withdrawToken(tokenMC2PoolV2.address))
+          .to.emit(tokenMC2Pool, 'Migration')
+          .withArgs(bob.address, bobtokenMC2Share);
 
         expect(await tokenMC2Pool.balanceOf(bob.address)).to.eq(0);
         expect(await tokenMC2.balanceOf(tokenMC2Pool.address)).to.eq(pooltokenMC2Balance.sub(bobtokenMC2Share));

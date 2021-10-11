@@ -74,7 +74,9 @@ describe('Rift Vault Unit tests', () => {
 
     describe('Deposits', async () => {
       it('should mint user tokens on ETH deposit', async () => {
-        await vault.connect(alice).depositEth({ value: ethDepositAmount });
+        await expect(vault.connect(alice).depositEth({ value: ethDepositAmount }))
+          .to.emit(vault, 'Deposit')
+          .withArgs(alice.address, ethDepositAmount);
 
         expect(await vault.balanceOf(alice.address)).to.eq(ethDepositAmount);
         expect(await ethers.provider.getBalance(vault.address)).to.eq(ethDepositAmount);
@@ -84,7 +86,10 @@ describe('Rift Vault Unit tests', () => {
       it('should mint user tokens on wETH deposit', async () => {
         await weth.connect(alice).deposit({ value: ethDepositAmount });
         await weth.connect(alice).approve(vault.address, ethDepositAmount);
-        await vault.connect(alice).depositWeth(ethDepositAmount);
+
+        await expect(vault.connect(alice).depositWeth(ethDepositAmount))
+          .to.emit(vault, 'Deposit')
+          .withArgs(alice.address, ethDepositAmount);
 
         expect(await vault.balanceOf(alice.address)).to.eq(ethDepositAmount.mul(2));
         expect(await weth.balanceOf(vault.address)).to.eq(ethDepositAmount);
@@ -199,7 +204,9 @@ describe('Rift Vault Unit tests', () => {
       it('should allow owner to call pairLiquidityPool', async () => {
         expect(await weth.balanceOf(vault.address)).to.eq(ethDepositAmount.mul(4));
 
-        await vault.pairLiquidityPool(pool.address, ethDepositAmount.mul(4));
+        await expect(vault.pairLiquidityPool(pool.address, ethDepositAmount.mul(4)))
+          .to.emit(vault, 'LiquidityDeployed')
+          .withArgs(pool.address, ethDepositAmount.mul(4));
 
         expect(await weth.balanceOf(vault.address)).to.eq(0);
       });
@@ -219,7 +226,9 @@ describe('Rift Vault Unit tests', () => {
       it('should allow owner to unpairLiquidityPool', async () => {
         const initialWethBalance = await weth.balanceOf(vault.address);
 
-        await vault.unpairLiquidityPool(pool.address);
+        await expect(vault.unpairLiquidityPool(pool.address))
+          .to.emit(vault, 'LiquidityReturned')
+          .withArgs(pool.address);
 
         expect(await weth.balanceOf(vault.address)).to.be.gt(initialWethBalance);
       });
@@ -278,12 +287,14 @@ describe('Rift Vault Unit tests', () => {
         const stakingTokenTotalSupply = await vault.totalSupply();
         const aliceStakingTokenBalance = await vault.balanceOf(alice.address);
         const aliceEthBalanceInitial = await ethers.provider.getBalance(alice.address);
+        const aliceEthShare = vaultEthBalance.mul(aliceStakingTokenBalance).div(stakingTokenTotalSupply);
 
-        await vault.connect(alice).withdrawEth(Addresses.zero);
+        await expect(vault.connect(alice).withdrawEth(Addresses.zero))
+          .to.emit(vault, 'Withdraw')
+          .withArgs(alice.address, aliceEthShare);
 
         const aliceEthBalanceFinal = await ethers.provider.getBalance(alice.address);
         const aliceEthBalanceIncrease = aliceEthBalanceFinal.sub(aliceEthBalanceInitial);
-        const aliceEthShare = vaultEthBalance.mul(aliceStakingTokenBalance).div(stakingTokenTotalSupply);
 
         expect(aliceEthBalanceIncrease).to.be.gt(aliceEthShare.mul(99).div(100));
         expect(await vault.balanceOf(alice.address)).to.eq(0);
@@ -306,7 +317,9 @@ describe('Rift Vault Unit tests', () => {
         const vaultV2EthBalance = await ethers.provider.getBalance(vaultV2.address);
         const bobEthShare = await vault.ethShare(bob.address);
 
-        await vault.connect(bob).withdrawEth(vaultV2.address);
+        await expect(vault.connect(bob).withdrawEth(vaultV2.address))
+          .to.emit(vault, 'Migration')
+          .withArgs(bob.address, bobEthShare);
 
         expect(await vault.balanceOf(bob.address)).to.eq(0);
         expect(await ethers.provider.getBalance(vault.address)).to.eq(vaultEthBalance.sub(bobEthShare));
