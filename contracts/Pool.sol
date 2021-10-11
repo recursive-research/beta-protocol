@@ -88,15 +88,14 @@ contract Pool is ERC20 {
         _mint(msg.sender, _amount);
     }
 
-    /// @notice allows user to withdraw from the pool during Phase Two
-    function withdrawToken(uint256 _amount, address _poolV2)
-        external
-        duringPhase(IVault.Phases.Two)
-        returns (uint256 returnAmount)
-    {
-        require(balanceOf(msg.sender) >= _amount, 'Withdraw amount exceeds balance');
-        returnAmount = (IERC20(token).balanceOf(address(this)) * _amount) / totalSupply();
-        _burn(msg.sender, _amount);
+    /// @notice allows user to withdraw or migrate from the pool during Phase Two
+    /// @param _poolV2 if the user wishes to migrate their token to Rift's V2 Pools, they can
+    /// do so by setting this parameter as a valid V2 pool address.
+    function withdrawToken(address _poolV2) external duringPhase(IVault.Phases.Two) returns (uint256 returnAmount) {
+        uint256 amount = balanceOf(msg.sender);
+        require(amount > 0, 'User has no balance');
+        returnAmount = (IERC20(token).balanceOf(address(this)) * amount) / totalSupply();
+        _burn(msg.sender, amount);
         if (_poolV2 == address(0)) {
             IERC20(token).transfer(msg.sender, returnAmount);
         } else {

@@ -10,7 +10,6 @@ import './interfaces/IWETH.sol';
 /// @notice allows users to deposit eth, which will deployed to various pools to earn a return during a period.
 contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-    uint256 public depositedEth;
     /// @notice the fixed rate that Pools are required to return to the Vault at the end of the period.
     /// Modifiable by owner.
     uint256 public fixedRate;
@@ -44,33 +43,30 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
 
     /// @notice allows users to deposit ETH during Phase zero and receive a staking token 1:1
     function depositEth() external payable duringPhase(Phases.Zero) {
-        depositedEth += msg.value;
-        require(depositedEth <= maxEth, 'Max eth cap has been hit');
+        require(totalSupply() + msg.value <= maxEth, 'Max eth cap has been hit');
         _mint(msg.sender, msg.value);
     }
 
     /// @notice allows users to deposit WETH during Phase zero and receive a staking token 1:1
     function depositWeth(uint256 _amount) external duringPhase(Phases.Zero) {
-        depositedEth += _amount;
-        require(depositedEth <= maxEth, 'Max eth cap has been hit');
+        require(totalSupply() + _amount <= maxEth, 'Max eth cap has been hit');
         IWETH(WETH).transferFrom(msg.sender, address(this), _amount);
         _mint(msg.sender, _amount);
     }
 
-    /// @notice allows users to burn their staking tokens and withdraw ETH during Phase Two
-    /// @param _amount the amount of staking tokens the user wishes to burn
+    /// @notice allows users to burn their staking tokens and withdraw ETH during Phase Two.
+    /// Users can only withdraw or migrate their entire balance. There will be no reason to
+    /// keep their ETH in the Vault after phase two. So they can employ it productively by
+    /// either migrating it to a V2 vault, or by withdrawing the full amount.
     /// @param _vaultV2 if the user wishes to migrate their liquidity to Rift's V2 Vault,
     /// they can do so by setting an address that is the Rift V2 vault, and the contract will
     /// send their ETH to the new Vault on behalf of the user. Otherwise, the contract sends
     /// the user's proportional share of ETH back to the user.
-    function withdrawEth(uint256 _amount, address _vaultV2)
-        external
-        duringPhase(Phases.Two)
-        returns (uint256 returnAmount)
-    {
-        require(balanceOf(msg.sender) >= _amount, 'Withdraw amount exceeds balance');
-        returnAmount = (address(this).balance * _amount) / totalSupply();
-        _burn(msg.sender, _amount);
+    function withdrawEth(address _vaultV2) external duringPhase(Phases.Two) returns (uint256 returnAmount) {
+        uint256 amount = balanceOf(msg.sender);
+        require(amount > 0, 'User has no balance');
+        returnAmount = (address(this).balance * amount) / totalSupply();
+        _burn(msg.sender, amount);
         if (_vaultV2 == address(0)) {
             payable(msg.sender).transfer(returnAmount);
         } else {
