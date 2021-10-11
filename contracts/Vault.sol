@@ -41,10 +41,35 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
         maxEth = _maxEth;
     }
 
+    /// @notice emitted after a successful deposit
+    /// @param user the address that deposited into the Vault
+    /// @param amount the amount that was deposited
+    event Deposit(address indexed user, uint256 amount);
+
+    /// @notice emitted after a successful withdrawal
+    /// @param user the address that withdrew from the Vault
+    /// @param amount The amount of ETH that was withdrawn
+    event Withdraw(address indexed user, uint256 amount);
+
+    /// @notice emitted after a successful migration
+    /// @param user the address that migrated from the Vault
+    /// @param amount The amount of ETH that was migrated
+    event Migration(address indexed user, uint256 amount);
+
+    /// @notice emitted after the vault pairs some of its liquidity with a pool
+    /// @param pool the pool to which liquidity was deployed
+    /// @param amount the amount of ETH that was deployed
+    event LiquidityDeployed(address indexed pool, uint256 amount);
+
+    /// @notice emitted after the vault unpairs its liquidity from a pool
+    /// @param pool the pool from which liquidity was return
+    event LiquidityReturned(address indexed pool);
+
     /// @notice allows users to deposit ETH during Phase zero and receive a staking token 1:1
     function depositEth() external payable duringPhase(Phases.Zero) {
         require(totalSupply() + msg.value <= maxEth, 'Max eth cap has been hit');
         _mint(msg.sender, msg.value);
+        emit Deposit(msg.sender, msg.value);
     }
 
     /// @notice allows users to deposit WETH during Phase zero and receive a staking token 1:1
@@ -52,6 +77,7 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
         require(totalSupply() + _amount <= maxEth, 'Max eth cap has been hit');
         IWETH(WETH).transferFrom(msg.sender, address(this), _amount);
         _mint(msg.sender, _amount);
+        emit Deposit(msg.sender, _amount);
     }
 
     /// @notice allows users to burn their staking tokens and withdraw ETH during Phase Two.
@@ -69,8 +95,10 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
         _burn(msg.sender, amount);
         if (_vaultV2 == address(0)) {
             payable(msg.sender).transfer(returnAmount);
+            emit Withdraw(msg.sender, returnAmount);
         } else {
             IVaultV2(_vaultV2).migrateLiquidity{ value: returnAmount }(msg.sender);
+            emit Migration(msg.sender, returnAmount);
         }
     }
 
@@ -89,6 +117,7 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     function pairLiquidityPool(address _pool, uint256 _amount) external onlyOwner {
         IWETH(WETH).transfer(_pool, _amount);
         IPool(_pool).pairLiquidity(_amount);
+        emit LiquidityDeployed(_pool, _amount);
     }
 
     /// @notice called by the contract owner at the end of Phase One, unwinding the deployed liquidity
@@ -96,6 +125,7 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     /// @param _pool address of the pool to unwind liquidity from
     function unpairLiquidityPool(address _pool) external onlyOwner {
         IPool(_pool).unpairLiquidity();
+        emit LiquidityReturned(_pool);
     }
 
     /// @notice allows the Vault owner to move the Vault into its next phase

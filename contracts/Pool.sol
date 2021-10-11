@@ -81,11 +81,27 @@ contract Pool is ERC20 {
         pair = UniswapV2Library.pairFor(sushiFactory, _token, WETH);
     }
 
+    /// @notice emitted after a successful deposit
+    /// @param user the address that deposited into the Pool
+    /// @param amount the amount that was deposited
+    event Deposit(address indexed user, uint256 amount);
+
+    /// @notice emitted after a successful withdrawal
+    /// @param user the address that withdrew from the Pool
+    /// @param amount The amount of token that was withdrawn
+    event Withdraw(address indexed user, uint256 amount);
+
+    /// @notice emitted after a successful migration
+    /// @param user the address that migrated from the Pool
+    /// @param amount The amount of token that was migrated
+    event Migration(address indexed user, uint256 amount);
+
     /// @notice allows users to deposit the pool's token during Phase Zero
     /// @param _amount how much of the token to deposit, and how many staking tokens will be minted
     function depositToken(uint256 _amount) external duringPhase(IVault.Phases.Zero) {
         IERC20(token).transferFrom(msg.sender, address(this), _amount);
         _mint(msg.sender, _amount);
+        emit Deposit(msg.sender, _amount);
     }
 
     /// @notice allows user to withdraw or migrate from the pool during Phase Two
@@ -98,9 +114,11 @@ contract Pool is ERC20 {
         _burn(msg.sender, amount);
         if (_poolV2 == address(0)) {
             IERC20(token).transfer(msg.sender, returnAmount);
+            emit Withdraw(msg.sender, returnAmount);
         } else {
             IERC20(token).approve(_poolV2, returnAmount);
             IPoolV2(_poolV2).migrateLiquidity(returnAmount, msg.sender);
+            emit Migration(msg.sender, returnAmount);
         }
     }
 
