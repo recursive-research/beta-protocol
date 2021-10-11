@@ -144,8 +144,8 @@ contract Pool is ERC20 {
     /// @notice function to unstake SLP tokens, remove liquidity from the token <> WETH SushiSwap pool, and
     /// return WETH to the Vault contract based on the required fixed rate, the initial amount of WETH
     /// deposited by the Vault, and the timestamp of the initial WETH deposit. Based on these variables,
-    /// the Pool may need to swap some of `token` for WETH to return the required fixed rate. If there is
-    /// enough WETH to return the required amount, any remaining WETH is swapped for the `token`.
+    /// the Pool may need to swap some of token for WETH to return the required fixed rate. If there is
+    /// enough WETH to return the required amount, any remaining WETH is swapped for the token.
     /// Can only be called by the Vault. The only Vault function that calls this is `unpairLiquidityPool`
     /// which in turn is only callable by the Vault Owner.
     function unpairLiquidity() external onlyVault {
@@ -162,11 +162,16 @@ contract Pool is ERC20 {
             block.timestamp
         );
 
+        // calculate the amount of WETH owed back to Vault. This is calculated as the initial deposit
+        // plus interest accrued during the period based on the vault's fixed rate, the initial deposit
+        // amount, and the duration of deposit
         uint256 wethOwed = initialWethDeposit +
             (((initialWethDeposit * vault.fixedRate()) / 100) * (block.timestamp - depositTimestamp)) /
             (365 days);
         uint256 wethBalance = IWETH(WETH).balanceOf(address(this));
 
+        // if the WETH balance in the contract is enough to pay back the fixed rate, the pool transfers
+        // that amount to the Vault, and converts any remaining WETH into token
         if (wethBalance >= wethOwed) {
             IWETH(WETH).transfer(address(vault), wethOwed);
             wethBalance -= wethOwed;
@@ -182,6 +187,8 @@ contract Pool is ERC20 {
                 );
             }
         } else {
+            // if the WETH balance is not enough to pay back the fixed rate, the pool converts some of its
+            // token balance into the required amount of WETH and sends the owed WETH back to the vault
             uint256 tokenBalance = IERC20(token).balanceOf(address(this));
             uint256 wethDeficit = wethOwed - wethBalance;
 
@@ -189,6 +196,9 @@ contract Pool is ERC20 {
             uint256 tokenQuote = UniswapV2Library.getAmountIn(wethDeficit, reserveToken, reserveWETH);
 
             IERC20(token).approve(sushiRouter, tokenBalance);
+            // if the pools token balance is enough to pay back the full fixed rate, the pool swaps the
+            // required amount of token into WETH, and transfers owed WETH to the vault, and
+            // keeps all remaining token.
             if (tokenQuote <= tokenBalance) {
                 wethBalance += IUniswapV2Router02(sushiRouter).swapTokensForExactTokens(
                     wethDeficit,
@@ -199,6 +209,8 @@ contract Pool is ERC20 {
                 )[1];
                 IWETH(WETH).transfer(address(vault), wethBalance);
             } else {
+                // if the pool's token balance is not enough to pay back the full fixed rate, the pool swaps
+                // its entire token balance into WETH, and pays back as much as it can.
                 wethBalance += IUniswapV2Router02(sushiRouter).swapExactTokensForTokens(
                     tokenBalance,
                     0,
