@@ -43,14 +43,7 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH', 'riftETH'), Ownable {
         _mint(msg.sender, _amount);
     }
 
-    function withdrawEth(uint256 _amount) external duringPhase(Phases.Two) returns (uint256 returnAmount) {
-        require(balanceOf(msg.sender) >= _amount, 'Withdraw amount exceeds balance');
-        returnAmount = (address(this).balance * _amount) / totalSupply();
-        _burn(msg.sender, _amount);
-        payable(msg.sender).transfer(returnAmount);
-    }
-
-    function withdrawAndMigrate(address _vaultV2, uint256 _amount)
+    function withdrawEth(uint256 _amount, address _vaultV2)
         external
         duringPhase(Phases.Two)
         returns (uint256 returnAmount)
@@ -58,7 +51,11 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH', 'riftETH'), Ownable {
         require(balanceOf(msg.sender) >= _amount, 'Withdraw amount exceeds balance');
         returnAmount = (address(this).balance * _amount) / totalSupply();
         _burn(msg.sender, _amount);
-        IVaultV2(_vaultV2).migrateLiquidity{ value: returnAmount }(msg.sender);
+        if (_vaultV2 == address(0)) {
+            payable(msg.sender).transfer(returnAmount);
+        } else {
+            IVaultV2(_vaultV2).migrateLiquidity{ value: returnAmount }(msg.sender);
+        }
     }
 
     function ethShare(address _account) external view duringPhase(Phases.Two) returns (uint256 share) {
