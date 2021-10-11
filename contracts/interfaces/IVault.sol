@@ -8,5 +8,7 @@ interface IVault {
         Two
     }
 
+    function fixedRate() external returns (uint256);
+
     function phase() external returns (Phases);
 }

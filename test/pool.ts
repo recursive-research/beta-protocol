@@ -1,9 +1,9 @@
 import { expect } from 'chai';
-import hre, { ethers } from 'hardhat';
+import { ethers } from 'hardhat';
 import { BigNumber } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
-import { IMasterChef, Vault, ERC20, IMasterChefV2, PoolMasterChefV2, PoolMasterChef } from '../typechain';
+import { IMasterChef, Vault, ERC20, IMasterChefV2, Pool } from '../typechain';
 import { deployVault, deployPool, getERC20, getTokens, getMasterChef, getMasterChefV2, mineBlocks } from './utils';
 import { getMasterChefPid, Tokens } from './constants';
 
@@ -17,9 +17,10 @@ describe('Rift Pool Unit tests', () => {
   const yfiDepositAmount = ethers.utils.parseEther('100');
   const aaveDepositAmount = ethers.utils.parseEther('20');
   const alcxDepositAmount = ethers.utils.parseEther('20');
-  const yfiPoolAllocation = BigNumber.from('40');
-  const aavePoolAllocation = BigNumber.from('40');
-  const alcxPoolAllocation = BigNumber.from('20');
+
+  const yfiEthAllocation = ethers.utils.parseEther('15');
+  const aaveEthAllocation = ethers.utils.parseEther('5');
+  const alcxEthAllocation = ethDepositAmount.sub(yfiEthAllocation).sub(aaveEthAllocation);
 
   let admin: SignerWithAddress;
   let alice: SignerWithAddress;
@@ -33,13 +34,13 @@ describe('Rift Pool Unit tests', () => {
   let masterChefV2: IMasterChefV2;
 
   let vault: Vault;
-  let aavePool: PoolMasterChef;
-  let yfiPool: PoolMasterChef;
-  let alcxPool: PoolMasterChefV2;
+  let aavePool: Pool;
+  let yfiPool: Pool;
+  let alcxPool: Pool;
 
   before(async () => {
     // account setup
-    const signers: SignerWithAddress[] = await hre.ethers.getSigners();
+    const signers: SignerWithAddress[] = await ethers.getSigners();
 
     [admin, alice, bob, charlie] = signers;
 
@@ -47,14 +48,15 @@ describe('Rift Pool Unit tests', () => {
     yfi = await getERC20(Tokens.yfi);
     aave = await getERC20(Tokens.aave);
     alcx = await getERC20(Tokens.alcx);
+
     masterChef = await getMasterChef();
     masterChefV2 = await getMasterChefV2();
 
     // rift contract setup
     vault = await deployVault(admin, fixedRate, maxEth);
-    yfiPool = (await deployPool(admin, vault, yfi)) as PoolMasterChef;
-    aavePool = (await deployPool(admin, vault, aave)) as PoolMasterChef;
-    alcxPool = (await deployPool(admin, vault, alcx)) as PoolMasterChefV2;
+    yfiPool = await deployPool(admin, vault, yfi);
+    aavePool = await deployPool(admin, vault, aave);
+    alcxPool = await deployPool(admin, vault, alcx);
   });
 
   describe('Deployment', async () => {
@@ -84,14 +86,6 @@ describe('Rift Pool Unit tests', () => {
       await expect(yfiPool.connect(alice).withdrawToken(yfiDepositAmount)).to.be.revertedWith(
         'Cannot execute this function during current phase',
       );
-    });
-
-    it('should reject pairLiquidity calls from non-vault (master chef v1)', async () => {
-      await expect(yfiPool.pairLiquidity()).to.be.revertedWith('Only Vault');
-    });
-
-    it('should reject pairLiquidity calls from non-vault (master chef v2)', async () => {
-      await expect(alcxPool.pairLiquidity()).to.be.revertedWith('Only Vault');
     });
 
     describe('should mint pool tokens to user on deposit', async () => {
@@ -130,35 +124,8 @@ describe('Rift Pool Unit tests', () => {
   describe('Phase One', async () => {
     before(async () => {
       await vault.connect(alice).depositEth({ value: ethDepositAmount });
-      await vault.executePhaseOne(
-        [yfiPool.address, aavePool.address, alcxPool.address],
-        [yfiPoolAllocation, aavePoolAllocation, alcxPoolAllocation],
-      );
-    });
-
-    after(async () => {
-      // fast forward blocks to receive lots of fake sushi rewards
-      await mineBlocks(100);
-    });
-
-    describe('should have master chef balances', async () => {
-      it('yfi-weth lp tokens', async () => {
-        const lpTokensReceived = await yfiPool.lpTokenBalance();
-        const yfiInfo = await masterChef.userInfo(getMasterChefPid(yfi.address), yfiPool.address);
-        expect(yfiInfo.amount).to.eq(lpTokensReceived);
-      });
-
-      it('aave-weth lp tokens', async () => {
-        const lpTokensReceived = await aavePool.lpTokenBalance();
-        const aaveInfo = await masterChef.userInfo(getMasterChefPid(aave.address), aavePool.address);
-        expect(aaveInfo.amount).to.eq(lpTokensReceived);
-      });
-
-      it('alcx-weth lp tokens', async () => {
-        const lpTokensReceived = await alcxPool.lpTokenBalance();
-        const alcxInfo = await masterChefV2.userInfo(getMasterChefPid(alcx.address), alcxPool.address);
-        expect(alcxInfo.amount).to.eq(lpTokensReceived);
-      });
+      await vault.nextPhase();
+      await vault.wrapEth();
     });
 
     it('should reject deposits', async () => {
@@ -172,11 +139,75 @@ describe('Rift Pool Unit tests', () => {
         'Cannot execute this function during current phase',
       );
     });
+
+    it('should reject pairLiquidity calls from non-vault', async () => {
+      await expect(yfiPool.pairLiquidity(ethDepositAmount)).to.be.revertedWith('Only Vault');
+    });
+
+    it('should reject unpairLiquidity calls from non-vault', async () => {
+      await expect(yfiPool.unpairLiquidity()).to.be.revertedWith('Only Vault');
+    });
+
+    describe('Pair Vaults liquidity', async () => {
+      it('should have master chef balances for yfi-eth', async () => {
+        await vault.pairLiquidityPool(yfiPool.address, yfiEthAllocation);
+
+        const lpTokensReceived = await yfiPool.lpTokenBalance();
+        const yfiInfo = await masterChef.userInfo(getMasterChefPid(yfi.address), yfiPool.address);
+
+        expect(yfiInfo.amount).to.eq(lpTokensReceived);
+      });
+
+      it('should have master chef balances for aave-weth', async () => {
+        await vault.pairLiquidityPool(aavePool.address, aaveEthAllocation);
+
+        const lpTokensReceived = await aavePool.lpTokenBalance();
+        const aaveInfo = await masterChef.userInfo(getMasterChefPid(aave.address), aavePool.address);
+
+        expect(aaveInfo.amount).to.eq(lpTokensReceived);
+      });
+
+      it('should have master chef v2 balances for alcx-weth', async () => {
+        await vault.pairLiquidityPool(alcxPool.address, alcxEthAllocation);
+
+        const lpTokensReceived = await alcxPool.lpTokenBalance();
+        const alcxInfo = await masterChefV2.userInfo(getMasterChefPid(alcx.address), alcxPool.address);
+
+        expect(alcxInfo.amount).to.eq(lpTokensReceived);
+      });
+    });
+
+    describe('Unpair Vaults Liquidity', async () => {
+      before(async () => {
+        await mineBlocks(100);
+      });
+
+      it('should withdraw yfi-weth from master chef and return weth to vault', async () => {
+        await vault.unpairLiquidityPool(yfiPool.address);
+
+        const yfiInfo = await masterChef.userInfo(getMasterChefPid(yfi.address), yfiPool.address);
+        expect(yfiInfo.amount).to.eq(0);
+      });
+
+      it('should withdraw aave-weth from master chef and return weth to vault', async () => {
+        await vault.unpairLiquidityPool(aavePool.address);
+
+        const aaveInfo = await masterChef.userInfo(getMasterChefPid(aave.address), aavePool.address);
+        expect(aaveInfo.amount).to.eq(0);
+      });
+
+      it('should withdraw alcx-weth from master chef v2 and return weth to vault', async () => {
+        await vault.unpairLiquidityPool(alcxPool.address);
+
+        const alcxInfo = await masterChefV2.userInfo(getMasterChefPid(alcx.address), alcxPool.address);
+        expect(alcxInfo.amount).to.eq(0);
+      });
+    });
   });
 
   describe('Phase Two', async () => {
     before(async () => {
-      await vault.executePhaseTwo();
+      await vault.nextPhase();
     });
 
     it('should reject deposits', async () => {

@@ -5,8 +5,9 @@ import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import './interfaces/IPool.sol';
 import './interfaces/IWETH.sol';
 
-contract Vault is ERC20('RIFT - Fixed Rate ETH', 'frETH'), Ownable {
+contract Vault is ERC20('RIFT - Fixed Rate ETH', 'riftETH'), Ownable {
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    uint256 public depositedEth;
     uint256 public fixedRate;
     uint256 public maxEth;
 
@@ -28,45 +29,54 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH', 'frETH'), Ownable {
         maxEth = _maxEth;
     }
 
-    receive() external payable {
-        assert(msg.sender == WETH);
-    }
-
     function depositEth() external payable duringPhase(Phases.Zero) {
-        require(address(this).balance <= maxEth, 'Max eth cap has been hit');
+        depositedEth += msg.value;
+        require(depositedEth <= maxEth, 'Max eth cap has been hit');
         _mint(msg.sender, msg.value);
     }
 
-    function withdrawEth(uint256 amount) external duringPhase(Phases.Two) returns (uint256 returnAmount) {
-        require(balanceOf(msg.sender) >= amount, 'Withdraw amount exceeds balance');
-        returnAmount = (address(this).balance * amount) / totalSupply();
-        _burn(msg.sender, amount);
+    function depositWeth(uint256 _amount) external duringPhase(Phases.Zero) {
+        depositedEth += _amount;
+        require(depositedEth <= maxEth, 'Max eth cap has been hit');
+        IWETH(WETH).transferFrom(msg.sender, address(this), _amount);
+        _mint(msg.sender, _amount);
+    }
+
+    function withdrawEth(uint256 _amount) external duringPhase(Phases.Two) returns (uint256 returnAmount) {
+        require(balanceOf(msg.sender) >= _amount, 'Withdraw amount exceeds balance');
+        returnAmount = (address(this).balance * _amount) / totalSupply();
+        _burn(msg.sender, _amount);
         payable(msg.sender).transfer(returnAmount);
+    }
+
+    function pairLiquidityPool(address _pool, uint256 _amount) external onlyOwner {
+        IWETH(WETH).transfer(_pool, _amount);
+        IPool(_pool).pairLiquidity(_amount);
+    }
+
+    function unpairLiquidityPool(address _pool) external onlyOwner {
+        IPool(_pool).unpairLiquidity();
+    }
+
+    function nextPhase() external onlyOwner {
+        phase = Phases(uint256(phase) + 1);
     }
 
     function updateMaxEth(uint256 _maxEth) external onlyOwner duringPhase(Phases.Zero) {
         maxEth = _maxEth;
     }
 
-    function executePhaseOne(address[] calldata _pools, uint256[] calldata _allocations)
-        external
-        onlyOwner
-        duringPhase(Phases.Zero)
-    {
-        phase = Phases.One;
+    function wrapEth() external onlyOwner {
         uint256 ethBalance = address(this).balance;
         IWETH(WETH).deposit{ value: ethBalance }();
-        for (uint256 index = 0; index < _pools.length; index++) {
-            uint256 _allocation = _allocations[index];
-            address _pool = _pools[index];
-            IERC20(WETH).transfer(_pool, (ethBalance * _allocation) / 100);
-            IPool(_pool).pairLiquidity();
-        }
     }
 
-    function executePhaseTwo() external onlyOwner duringPhase(Phases.One) {
-        phase = Phases.Two;
-        uint256 wethBalance = IERC20(WETH).balanceOf(address(this));
+    function unwrapEth() external onlyOwner {
+        uint256 wethBalance = IWETH(WETH).balanceOf(address(this));
         IWETH(WETH).withdraw(wethBalance);
+    }
+
+    receive() external payable {
+        assert(msg.sender == WETH);
     }
 }

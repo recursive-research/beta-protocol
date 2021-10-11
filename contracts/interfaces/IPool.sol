@@ -2,5 +2,7 @@
 pragma solidity 0.8.6;
 
 interface IPool {
-    function pairLiquidity() external;
+    function pairLiquidity(uint256 amount) external;
+
+    function unpairLiquidity() external;
 }

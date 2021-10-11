@@ -3,9 +3,9 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { BigNumber } from 'ethers';
 import { Artifact } from 'hardhat/types';
 
-import { IMasterChef, ERC20, Vault, IPool, IMasterChefV2 } from '../typechain';
+import { ERC20, IMasterChef, IMasterChefV2, Vault, Pool, IWETH } from '../typechain';
 import { deployContract } from 'ethereum-waffle';
-import { Contracts, getMasterChefPid, getPoolType, getWhale } from './constants';
+import { Contracts, getMasterChefPid, isMasterChefV2, getWhale, Tokens } from './constants';
 
 // Helper functions to deploy contracts
 export async function deployVault(admin: SignerWithAddress, fixedRate: BigNumber, maxEth: BigNumber): Promise<Vault> {
@@ -13,14 +13,14 @@ export async function deployVault(admin: SignerWithAddress, fixedRate: BigNumber
   return (await deployContract(admin, vaultArtifact, [fixedRate, maxEth])) as Vault;
 }
 
-export async function deployPool(admin: SignerWithAddress, vault: Vault, token: ERC20): Promise<IPool> {
-  const poolType = getPoolType(token.address);
-  const poolArtifact: Artifact = await hre.artifacts.readArtifact(poolType);
+export async function deployPool(admin: SignerWithAddress, vault: Vault, token: ERC20): Promise<Pool> {
+  const poolArtifact: Artifact = await hre.artifacts.readArtifact('Pool');
   return (await deployContract(admin, poolArtifact, [
     vault.address,
     token.address,
     getMasterChefPid(token.address),
-  ])) as IPool;
+    isMasterChefV2(token.address),
+  ])) as Pool;
 }
 
 // Helper function to get existing contracts
@@ -34,6 +34,10 @@ export async function getMasterChef(): Promise<IMasterChef> {
 
 export async function getMasterChefV2(): Promise<IMasterChefV2> {
   return (await hre.ethers.getContractAt('IMasterChefV2', Contracts.masterChefV2)) as IMasterChefV2;
+}
+
+export async function getWETH(): Promise<IWETH> {
+  return (await hre.ethers.getContractAt('IWETH', Tokens.weth)) as IWETH;
 }
 
 export async function getTokens(user: SignerWithAddress, token: ERC20, amount: BigNumber): Promise<void> {

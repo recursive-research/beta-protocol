@@ -43,14 +43,14 @@ export function getMasterChefPid(address: string): BigNumber {
   }
 }
 
-export function getPoolType(address: string): string {
+export function isMasterChefV2(address: string): boolean {
   switch (address) {
     case Tokens.yfi:
     case Tokens.aave:
-      return 'PoolMasterChef';
+      return false;
     case Tokens.alcx:
-      return 'PoolMasterChefV2';
+      return true;
     default:
-      return '';
+      return false;
   }
 }
