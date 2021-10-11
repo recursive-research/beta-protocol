@@ -132,7 +132,7 @@ describe('Rift Vault Unit tests', () => {
     });
 
     it('should reject withdraw', async () => {
-      await expect(vault.connect(alice).withdrawEth(ethDepositAmount, Addresses.zero)).to.be.revertedWith(
+      await expect(vault.connect(alice).withdrawEth(Addresses.zero)).to.be.revertedWith(
         'Cannot execute this function during current phase',
       );
     });
@@ -168,7 +168,7 @@ describe('Rift Vault Unit tests', () => {
     });
 
     it('should reject withdraw', async () => {
-      await expect(vault.connect(alice).withdrawEth(ethDepositAmount, Addresses.zero)).to.be.revertedWith(
+      await expect(vault.connect(alice).withdrawEth(Addresses.zero)).to.be.revertedWith(
         'Cannot execute this function during current phase',
       );
     });
@@ -273,40 +273,34 @@ describe('Rift Vault Unit tests', () => {
     });
 
     describe('Withdraw', async () => {
-      it('should reject withdraw when withdraw amount exceeds balance', async () => {
-        const aliceStakingTokenBalance = await vault.balanceOf(alice.address);
-        await expect(
-          vault.connect(alice).withdrawEth(aliceStakingTokenBalance.add(1), Addresses.zero),
-        ).to.be.revertedWith('Withdraw amount exceeds balance');
+      it('should reject withdraw when user has no balance', async () => {
+        await expect(vault.connect(admin).withdrawEth(Addresses.zero)).to.be.revertedWith('User has no balance');
       });
 
       it('should allow users to withdraw proportional share', async () => {
         const vaultEthBalance = await ethers.provider.getBalance(vault.address);
         const stakingTokenTotalSupply = await vault.totalSupply();
         const aliceStakingTokenBalance = await vault.balanceOf(alice.address);
-        const aliceWithdrawAmount = aliceStakingTokenBalance.div(2); // withdraw half, migrate half to v2
         const aliceEthBalanceInitial = await ethers.provider.getBalance(alice.address);
 
-        await vault.connect(alice).withdrawEth(aliceWithdrawAmount, Addresses.zero);
+        await vault.connect(alice).withdrawEth(Addresses.zero);
 
         const aliceEthBalanceFinal = await ethers.provider.getBalance(alice.address);
         const aliceEthBalanceIncrease = aliceEthBalanceFinal.sub(aliceEthBalanceInitial);
-        const aliceEthShare = vaultEthBalance.mul(aliceWithdrawAmount).div(stakingTokenTotalSupply);
+        const aliceEthShare = vaultEthBalance.mul(aliceStakingTokenBalance).div(stakingTokenTotalSupply);
 
         expect(aliceEthBalanceIncrease).to.be.gt(aliceEthShare.mul(99).div(100));
-        expect(await vault.balanceOf(alice.address)).to.eq(aliceStakingTokenBalance.sub(aliceWithdrawAmount));
+        expect(await vault.balanceOf(alice.address)).to.eq(0);
         expect(await ethers.provider.getBalance(vault.address)).to.eq(vaultEthBalance.sub(aliceEthShare));
       });
     });
 
     describe('Migrations to V2', async () => {
-      it('should reject migration to v2 when amount exceeds balance', async () => {
+      it('should reject migration to v2 after user has withdrawn', async () => {
         const vaultV2: VaultV2Mock = await deployVaultV2(admin);
-        const aliceStakingTokenBalance = await vault.balanceOf(alice.address);
+        expect(await vault.balanceOf(alice.address)).to.eq(0);
 
-        await expect(
-          vault.connect(alice).withdrawEth(aliceStakingTokenBalance.add(1), vaultV2.address),
-        ).to.be.revertedWith('Withdraw amount exceeds balance');
+        await expect(vault.connect(alice).withdrawEth(vaultV2.address)).to.be.revertedWith('User has no balance');
       });
 
       it('should allow users to migrate their eth to V2', async () => {
@@ -314,15 +308,15 @@ describe('Rift Vault Unit tests', () => {
 
         const vaultEthBalance = await ethers.provider.getBalance(vault.address);
         const vaultV2EthBalance = await ethers.provider.getBalance(vaultV2.address);
-        const aliceStakingTokenBalance = await vault.balanceOf(alice.address);
-        const aliceEthShare = await vault.ethShare(alice.address);
+        const bobEthShare = await vault.ethShare(bob.address);
 
-        await vault.connect(alice).withdrawEth(aliceStakingTokenBalance, vaultV2.address);
+        await vault.connect(bob).withdrawEth(vaultV2.address);
 
-        expect(await vault.balanceOf(alice.address)).to.eq(0);
-        expect(await ethers.provider.getBalance(vault.address)).to.eq(vaultEthBalance.sub(aliceEthShare));
-        expect(await ethers.provider.getBalance(vaultV2.address)).to.eq(vaultV2EthBalance.add(aliceEthShare));
-        expect(await vaultV2.balanceOf(alice.address)).to.eq(aliceEthShare);
+        expect(await vault.balanceOf(bob.address)).to.eq(0);
+        expect(await ethers.provider.getBalance(vault.address)).to.eq(vaultEthBalance.sub(bobEthShare));
+        expect(await ethers.provider.getBalance(vault.address)).to.eq(0);
+        expect(await ethers.provider.getBalance(vaultV2.address)).to.eq(vaultV2EthBalance.add(bobEthShare));
+        expect(await vaultV2.balanceOf(bob.address)).to.eq(bobEthShare);
       });
     });
   });

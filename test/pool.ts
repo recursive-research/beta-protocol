@@ -98,7 +98,7 @@ describe('Rift Pool Unit tests', () => {
     });
 
     it('should reject withdraws', async () => {
-      await expect(tokenMCPool.connect(alice).withdrawToken(tokenMCDepositAmount, Addresses.zero)).to.be.revertedWith(
+      await expect(tokenMCPool.connect(alice).withdrawToken(Addresses.zero)).to.be.revertedWith(
         'Cannot execute this function during current phase',
       );
     });
@@ -150,7 +150,7 @@ describe('Rift Pool Unit tests', () => {
     });
 
     it('should reject withdraws', async () => {
-      await expect(tokenMCPool.connect(alice).withdrawToken(tokenMCDepositAmount, Addresses.zero)).to.be.revertedWith(
+      await expect(tokenMCPool.connect(alice).withdrawToken(Addresses.zero)).to.be.revertedWith(
         'Cannot execute this function during current phase',
       );
     });
@@ -237,85 +237,49 @@ describe('Rift Pool Unit tests', () => {
       );
     });
 
-    it('should reject withdraw when withdraw amount exceeds balance', async () => {
-      await expect(
-        tokenMCPool.connect(alice).withdrawToken(tokenMCDepositAmount.add(1), Addresses.zero),
-      ).to.be.revertedWith('Withdraw amount exceeds balance');
+    it('should reject withdraw when user has no balance', async () => {
+      await expect(tokenMCPool.connect(admin).withdrawToken(Addresses.zero)).to.be.revertedWith('User has no balance');
     });
 
     describe('Withdraw', async () => {
-      it('should allow users to withdraw part of their balance', async () => {
+      it('should allow users to withdraw their balance', async () => {
         const pooltokenMCBalance = await tokenMC.balanceOf(tokenMCPool.address);
         const stakingTokenTotalSupply = await tokenMCPool.totalSupply();
         const aliceStakingTokenBalance = await tokenMCPool.balanceOf(alice.address);
-        const aliceWithdrawAmount = aliceStakingTokenBalance.div(2); // withdraw half, migrate half
 
-        await tokenMCPool.connect(alice).withdrawToken(aliceWithdrawAmount, Addresses.zero);
+        await tokenMCPool.connect(alice).withdrawToken(Addresses.zero);
 
-        const alicetokenMCBalanceExpected = pooltokenMCBalance.mul(aliceWithdrawAmount).div(stakingTokenTotalSupply);
-
-        expect(await tokenMC.balanceOf(alice.address)).to.eq(alicetokenMCBalanceExpected);
-        expect(await tokenMCPool.balanceOf(alice.address)).to.eq(aliceStakingTokenBalance.sub(aliceWithdrawAmount));
-        expect(await tokenMC.balanceOf(tokenMCPool.address)).to.eq(pooltokenMCBalance.sub(alicetokenMCBalanceExpected));
-      });
-
-      it('should allow users to withdraw their full balance', async () => {
-        const pooltokenMC2Balance = await tokenMC2.balanceOf(tokenMC2Pool.address);
-        const stakingTokenTotalSupply = await tokenMC2Pool.totalSupply();
-        const bobStakingTokenBalance = await tokenMC2Pool.balanceOf(bob.address);
-
-        await tokenMC2Pool.connect(bob).withdrawToken(bobStakingTokenBalance, Addresses.zero);
-
-        const bobtokenMC2BalanceExpected = pooltokenMC2Balance.mul(bobStakingTokenBalance).div(stakingTokenTotalSupply);
-
-        expect(await tokenMC2.balanceOf(bob.address)).to.eq(bobtokenMC2BalanceExpected);
-        expect(await tokenMC2Pool.balanceOf(bob.address)).to.eq(0);
-        expect(await tokenMC2.balanceOf(tokenMC2Pool.address)).to.eq(
-          pooltokenMC2Balance.sub(bobtokenMC2BalanceExpected),
-        );
-      });
-
-      it('should allow users to withdraw their full balance', async () => {
-        const pooltokenBasicBalance = await tokenBasic.balanceOf(tokenBasicPool.address);
-        const stakingTokenTotalSupply = await tokenBasicPool.totalSupply();
-        const charlieStakingTokenBalance = await tokenBasicPool.balanceOf(charlie.address);
-
-        await tokenBasicPool.connect(charlie).withdrawToken(charlieStakingTokenBalance, Addresses.zero);
-
-        const charlietokenBasicBalanceExpected = pooltokenBasicBalance
-          .mul(charlieStakingTokenBalance)
+        const alicetokenMCBalanceExpected = pooltokenMCBalance
+          .mul(aliceStakingTokenBalance)
           .div(stakingTokenTotalSupply);
 
-        expect(await tokenBasic.balanceOf(charlie.address)).to.eq(charlietokenBasicBalanceExpected);
-        expect(await tokenBasicPool.balanceOf(charlie.address)).to.eq(0);
-        expect(await tokenBasic.balanceOf(tokenBasicPool.address)).to.eq(
-          pooltokenBasicBalance.sub(charlietokenBasicBalanceExpected),
-        );
+        expect(await tokenMC.balanceOf(alice.address)).to.eq(alicetokenMCBalanceExpected);
+        expect(await tokenMCPool.balanceOf(alice.address)).to.eq(0);
+        expect(await tokenMC.balanceOf(tokenMCPool.address)).to.eq(pooltokenMCBalance.sub(alicetokenMCBalanceExpected));
       });
     });
 
     describe('Migrate to V2', async () => {
-      it('should reject migrations when amount is greater than their balance', async () => {
+      it('should reject migrations after user has withdrawn', async () => {
         const tokenMCPoolV2: PoolV2Mock = await deployPoolV2(admin, tokenMC.address);
-        const aliceStakingTokenBalance = await tokenMCPool.balanceOf(alice.address);
-        await expect(
-          tokenMCPool.connect(alice).withdrawToken(aliceStakingTokenBalance.add(1), tokenMCPoolV2.address),
-        ).to.be.revertedWith('Withdraw amount exceeds balance');
+        expect(await tokenMCPool.balanceOf(alice.address)).to.eq(0);
+        await expect(tokenMCPool.connect(alice).withdrawToken(tokenMCPoolV2.address)).to.be.revertedWith(
+          'User has no balance',
+        );
       });
 
       it('should allow users to migrate their liquidity to v2', async () => {
-        const tokenMCPoolV2: PoolV2Mock = await deployPoolV2(admin, tokenMC.address);
+        const tokenMC2PoolV2: PoolV2Mock = await deployPoolV2(admin, tokenMC2.address);
 
-        const pooltokenMCBalance = await tokenMC.balanceOf(tokenMCPool.address);
-        const aliceStakingTokenBalance = await tokenMCPool.balanceOf(alice.address);
-        const alicetokenMCShare = await tokenMCPool.tokenShare(alice.address);
+        const pooltokenMC2Balance = await tokenMC2.balanceOf(tokenMC2Pool.address);
+        const bobtokenMC2Share = await tokenMC2Pool.tokenShare(bob.address);
 
-        await tokenMCPool.connect(alice).withdrawToken(aliceStakingTokenBalance, tokenMCPoolV2.address);
+        await tokenMC2Pool.connect(bob).withdrawToken(tokenMC2PoolV2.address);
 
-        expect(await tokenMCPool.balanceOf(alice.address)).to.eq(0);
-        expect(await tokenMC.balanceOf(tokenMCPool.address)).to.eq(pooltokenMCBalance.sub(alicetokenMCShare));
-        expect(await tokenMC.balanceOf(tokenMCPoolV2.address)).to.eq(alicetokenMCShare);
-        expect(await tokenMCPoolV2.balanceOf(alice.address)).to.eq(alicetokenMCShare);
+        expect(await tokenMC2Pool.balanceOf(bob.address)).to.eq(0);
+        expect(await tokenMC2.balanceOf(tokenMC2Pool.address)).to.eq(pooltokenMC2Balance.sub(bobtokenMC2Share));
+        expect(await tokenMC2.balanceOf(tokenMC2PoolV2.address)).to.eq(bobtokenMC2Share);
+        expect(await tokenMC2PoolV2.balanceOf(bob.address)).to.eq(bobtokenMC2Share);
       });
     });
   });

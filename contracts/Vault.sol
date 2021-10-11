@@ -57,20 +57,19 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
         _mint(msg.sender, _amount);
     }
 
-    /// @notice allows users to burn their staking tokens and withdraw ETH during Phase Two
-    /// @param _amount the amount of staking tokens the user wishes to burn
+    /// @notice allows users to burn their staking tokens and withdraw ETH during Phase Two.
+    /// Users can only withdraw or migrate their entire balance. There will be no reason to
+    /// keep their ETH in the Vault after phase two. So they can employ it productively by
+    /// either migrating it to a V2 vault, or by withdrawing the full amount.
     /// @param _vaultV2 if the user wishes to migrate their liquidity to Rift's V2 Vault,
     /// they can do so by setting an address that is the Rift V2 vault, and the contract will
     /// send their ETH to the new Vault on behalf of the user. Otherwise, the contract sends
     /// the user's proportional share of ETH back to the user.
-    function withdrawEth(uint256 _amount, address _vaultV2)
-        external
-        duringPhase(Phases.Two)
-        returns (uint256 returnAmount)
-    {
-        require(balanceOf(msg.sender) >= _amount, 'Withdraw amount exceeds balance');
-        returnAmount = (address(this).balance * _amount) / totalSupply();
-        _burn(msg.sender, _amount);
+    function withdrawEth(address _vaultV2) external duringPhase(Phases.Two) returns (uint256 returnAmount) {
+        uint256 amount = balanceOf(msg.sender);
+        require(amount > 0, 'User has no balance');
+        returnAmount = (address(this).balance * amount) / totalSupply();
+        _burn(msg.sender, amount);
         if (_vaultV2 == address(0)) {
             payable(msg.sender).transfer(returnAmount);
         } else {
