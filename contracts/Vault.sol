@@ -12,6 +12,7 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     uint256 public depositedEth;
     /// @notice the fixed rate that Pools are required to return to the Vault at the end of the period.
+    /// Modifiable by owner.
     uint256 public fixedRate;
     /// @notice the maximum amount of ETH that can be deposited into the contract during Phase Zero.
     /// Modifiable by owner.
@@ -110,6 +111,11 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     /// Only relevant during phase zero, because deposits are not allowed during Phases 1 or 2
     function updateMaxEth(uint256 _maxEth) external onlyOwner duringPhase(Phases.Zero) {
         maxEth = _maxEth;
+    }
+
+    /// @notice allows the owner to update the fixed rate
+    function updateFixedRate(uint256 _fixedRate) external onlyOwner {
+        fixedRate = _fixedRate;
     }
 
     /// @notice allows the owner to wrap any ETH in the contract. Called at the beginning of Phase One

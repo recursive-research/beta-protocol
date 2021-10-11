@@ -10,7 +10,8 @@ import { Addresses, Tokens } from './constants';
 describe('Rift Vault Unit tests', () => {
   const tokenName = 'RIFT - Fixed Rate ETH V1';
   const tokenSymbol = 'riftETHv1';
-  const fixedRate = BigNumber.from('10');
+  const fixedRate = BigNumber.from('5');
+  const newFixedRate = BigNumber.from('10');
   const ethDepositAmount = ethers.utils.parseEther('4');
   const yfiDepositAmount = ethers.utils.parseEther('100');
   const maxEth = ethers.utils.parseEther('10');
@@ -63,6 +64,12 @@ describe('Rift Vault Unit tests', () => {
 
     it('should reject maxEth updates from non owner', async () => {
       await expect(vault.connect(alice).updateMaxEth(newMaxEth)).to.be.revertedWith('Ownable: caller is not the owner');
+    });
+
+    it('should allow owner to update fixed rate', async () => {
+      await vault.updateFixedRate(newFixedRate);
+
+      expect(await vault.fixedRate()).to.eq(newFixedRate);
     });
 
     describe('Deposits', async () => {
