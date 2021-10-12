@@ -102,7 +102,7 @@ contract Pool is ERC20 {
     /// @notice allows users to deposit the pool's token during Phase Zero
     /// @param _amount how much of the token to deposit, and how many staking tokens will be minted
     function depositToken(uint256 _amount) external duringPhase(IVault.Phases.Zero) {
-        IERC20(token).transferFrom(msg.sender, address(this), _amount);
+        IERC20(token).safeTransferFrom(msg.sender, address(this), _amount);
         _mint(msg.sender, _amount);
         emit Deposit(msg.sender, _amount);
     }
@@ -116,7 +116,7 @@ contract Pool is ERC20 {
         returnAmount = (IERC20(token).balanceOf(address(this)) * amount) / totalSupply();
         _burn(msg.sender, amount);
         if (_poolV2 == address(0)) {
-            IERC20(token).transfer(msg.sender, returnAmount);
+            IERC20(token).safeTransfer(msg.sender, returnAmount);
             emit Withdraw(msg.sender, returnAmount);
         } else {
             IERC20(token).safeApprove(_poolV2, returnAmount);
