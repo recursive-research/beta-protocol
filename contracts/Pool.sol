@@ -9,7 +9,7 @@ import './interfaces/IPoolV2.sol';
 import './interfaces/IUniswapV2Router02.sol';
 import './interfaces/IVault.sol';
 import './interfaces/IWETH.sol';
-import './libraries/UniswapV2Library.sol';
+import './libraries/SushiSwapLibrary.sol';
 
 /// @title Rift V1 Pool
 /// @notice allows users to deposit an ERC token that will be paired with ETH and deployed to a Sushiswap pool.
@@ -78,7 +78,7 @@ contract Pool is ERC20 {
         token = _token;
         pid = _pid;
         sushiRewarder = SushiRewarder(_sushiRewarder);
-        pair = UniswapV2Library.pairFor(sushiFactory, _token, WETH);
+        pair = SushiSwapLibrary.pairFor(sushiFactory, _token, WETH);
     }
 
     /// @notice emitted after a successful deposit
@@ -210,8 +210,8 @@ contract Pool is ERC20 {
             uint256 tokenBalance = IERC20(token).balanceOf(address(this));
             uint256 wethDeficit = wethOwed - wethBalance;
 
-            (uint256 reserveToken, uint256 reserveWETH) = UniswapV2Library.getReserves(sushiFactory, token, WETH);
-            uint256 tokenQuote = UniswapV2Library.getAmountIn(wethDeficit, reserveToken, reserveWETH);
+            (uint256 reserveToken, uint256 reserveWETH) = SushiSwapLibrary.getReserves(sushiFactory, token, WETH);
+            uint256 tokenQuote = SushiSwapLibrary.getAmountIn(wethDeficit, reserveToken, reserveWETH);
 
             IERC20(token).approve(sushiRouter, tokenBalance);
             // if the pools token balance is enough to pay back the full fixed rate, the pool swaps the
