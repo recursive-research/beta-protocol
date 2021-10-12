@@ -71,7 +71,7 @@ export async function getWETH(): Promise<IWETH> {
   return (await hre.ethers.getContractAt('IWETH', Tokens.weth)) as IWETH;
 }
 
-export async function getTokens(user: SignerWithAddress, token: ERC20, amount: BigNumber): Promise<void> {
+export async function getTokens(user: any, token: any, amount: BigNumber): Promise<void> {
   const whaleAddress: string = getWhale(token.address);
   await impersonateAccount(whaleAddress);
   const whale: SignerWithAddress = await hre.ethers.getSigner(whaleAddress);
