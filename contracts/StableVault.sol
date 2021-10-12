@@ -25,32 +25,16 @@ contract StableVault is Ownable {
 
     address public pair = UniswapV2Library.pairFor(uniswapFactory, usdc, usdt);
 
-    /// @notice the StableVault has 4 Phases, and actions are restricted based on which Phase it's in.
-    enum Phases {
-        Zero,
-        One,
-        Two,
-        Three
-    }
-
-    /// @notice indicator which Phase StableVault is in. The owner can move the Vault to the next Phase.
-    Phases public phase = Phases.Zero;
-
-    /// @notice restricts actions based on the current Phase.
-    modifier duringPhase(Phases _phase) {
-        require(phase == _phase, 'Cannot execute this function during current phase');
-        _;
-    }
-
-    /// @notice restricts actions to tokens USDC and USDT
+    /// @notice restricts actions to USDC and USDT
     modifier validToken(address _token) {
         require(_token == usdc || _token == usdt, 'Invalid Token');
         _;
     }
 
-    /// @notice allows users to deposit a token during Phase Zero
+    /// @notice allows users to deposit a token before liquidity has been deployed
     /// @param _amount how much of the token to deposit, and how many staking tokens will be minted
-    function depositToken(address _token, uint256 _amount) external duringPhase(Phases.Zero) validToken(_token) {
+    function depositToken(address _token, uint256 _amount) external validToken(_token) {
+        require(!liquidityAdded, 'Liquidity already deployed');
         IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
         _token == usdc ? svUsdc.mint(msg.sender, _amount) : svUsdt.mint(msg.sender, _amount);
     }
@@ -58,9 +42,9 @@ contract StableVault is Ownable {
     function withdrawToken(address _token, address _stableVaultV2)
         external
         validToken(_token)
-        duringPhase(Phases.Three)
         returns (uint256 returnAmount)
     {
+        require(liquidityRemoved, 'Liquidity not yet removed');
         StableVaultToken svToken = _token == usdc ? svUsdc : svUsdt;
         uint256 amount = svToken.balanceOf(msg.sender);
         require(amount > 0, 'No balance to withdraw');
@@ -77,8 +61,9 @@ contract StableVault is Ownable {
         }
     }
 
-    /// @notice called by the owner during phase 1
-    function addLiquidity(uint256 _minUsdc, uint256 _minUsdt) external onlyOwner duringPhase(Phases.One) {
+    /// @notice called by the owner after tokens have been deposited
+    function addLiquidity(uint256 _minUsdc, uint256 _minUsdt) external onlyOwner {
+        require(!liquidityRemoved, 'Liquidity already removed');
         uint256 usdcBalance = IERC20(usdc).balanceOf(address(this));
         uint256 usdtBalance = IERC20(usdt).balanceOf(address(this));
 
@@ -98,7 +83,9 @@ contract StableVault is Ownable {
         liquidityAdded = true;
     }
 
-    function removeLiquidity(uint256 _minUsdc, uint256 _minUsdt) external onlyOwner duringPhase(Phases.Two) {
+    /// @notice called by the owner after liquidity has been deployed
+    function removeLiquidity(uint256 _minUsdc, uint256 _minUsdt) external onlyOwner {
+        require(liquidityAdded, 'Liquidity not yet deployed');
         uint256 lpTokenBalance = IERC20(pair).balanceOf(address(this));
         IERC20(pair).approve(uniswapRouter, lpTokenBalance);
         IUniswapV2Router02(uniswapRouter).removeLiquidity(
@@ -111,15 +98,5 @@ contract StableVault is Ownable {
             block.timestamp
         );
         liquidityRemoved = true;
-    }
-
-    /// @notice allows the Vault owner to move the Vault into its next phase
-    function nextPhase() external onlyOwner {
-        if (phase == Phases.One) {
-            require(liquidityAdded, 'Liquidity not added yet');
-        } else if (phase == Phases.Two) {
-            require(liquidityRemoved, 'Liquidity not removed yet');
-        }
-        phase = Phases(uint256(phase) + 1);
     }
 }
