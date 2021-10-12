@@ -1,10 +1,12 @@
 # rift-contracts
 
-These are the smart contracts for Rift V1. The most important contracts are in `Vault.sol` and `Pool.sol`.
+These are Rift's V1 contracts and they consist of 2 separate products. The first product consists of the contracts in `Vault.sol` and `Pool.sol`. The second product consists of the contracts in `StableVault.sol` and `StableVaultToken.sol`.
+
+## `Vault` and `Pool`
 
 These contracts work together over a period of 3 phases, and users can only execute certain actions during each phase. The Vault contract is `Ownable`, inheriting the standard contract from OpenZeppelin. In V1, the Vault contract owner is assumed to be a benevolent party.
 
-### Phase Zero
+#### Phase Zero
 
 Upon deployment, the `Vault` is in Phase Zero. Note that the `Pool`'s functionality is also restricted based on the current phase of the `Vault`.
 
@@ -23,7 +25,7 @@ The pool allows users to deposit the Pool's token into the contract while the Va
 
 At the end of Phase Zero, the contract owner will call `nextPhase`. This prevents any more deposits.
 
-### Phase One
+#### Phase One
 
 Now there is some amount of `ETH`/`WETH` sitting in the Vault contract, and some amount of tokens sitting in each Pool contract.
 
@@ -37,10 +39,30 @@ The Vault owner does this for each Pool that it deployed liquidity to at the beg
 
 The Vault owner then calls `nextPhase`, which moves the Vault into Phase Two.
 
-### Phase Two
+#### Phase Two
 
 During Phase Two, users can withdraw.
 
 Users who deposited into the Vault can burn their staking tokens for their proportional share of `ETH` sitting in the vault contract by calling `withdrawEth`. They can also migrate their `ETH` to Rift's V2, by adding a valid argument for `_vaultV2`, and the vault sends their `ETH` to the new vault on behalf of the user.
 
 Users who deposited into the Pool can burn their staking tokens for their proportional share of `token` sitting in the respective Pool by calling `withdrawToken`. Similarly, they can also migrate their liquidity to the V2 contracts by adding a valid argument for `_poolV2`.
+
+## `StableVault` and `StableVaultToken`
+
+The main contract is `StableVault`. This contract deploys and "owns" two instances of the `StableVaultToken`.
+
+#### Deployment
+
+After deployment, users are able to deposit `USDC` or `USDT`. Users are minted one of two staking tokens (a `StableVaultToken`), depending on which of the two tokens they deposited. The `StableVaultToken`s for `USDC` and `USDT` are owned by the `StableVault`, and new tokens can only be minted by the `StableVault` on a deposit or withdraw.
+
+#### Adding liquidity
+
+After sufficient deposits into the `StableVault`, the contract owner will call `addLiquidity`. This pairs the `USDC` and `USDT` currently in the `StableVault`, and adds liquidity to the Uniswap V2 Pair for these tokens. Users cannot deposit new tokens after this has function has been executed successfully.
+
+#### Removing Liquidity
+
+After a period of time, the contract owner will call `removeLiquidity` on the `StableVault`. The Uniswap LP tokens are burned, and `USDC` and `USDT` are returned to the `StableVault`
+
+#### Withdraw
+
+After liquidity has been removed from the `StableVault`, users can withdraw their proportional share of `USDC` or `USDT` by calling `withdrawToken`, which burns their staking tokens and either sends them their proportional share, or transfers their proportional share to the `StableVaultV2`, based on the user's preference.
