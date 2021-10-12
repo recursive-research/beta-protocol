@@ -196,7 +196,7 @@ describe('Rift Vault Unit tests', () => {
       });
 
       it('should reject pairLiquidityPool calls from non owner', async () => {
-        await expect(vault.connect(alice).pairLiquidityPool(pool.address, ethDepositAmount)).to.be.revertedWith(
+        await expect(vault.connect(alice).pairLiquidityPool(pool.address, ethDepositAmount, 1, 1)).to.be.revertedWith(
           'Ownable: caller is not the owner',
         );
       });
@@ -204,7 +204,7 @@ describe('Rift Vault Unit tests', () => {
       it('should allow owner to call pairLiquidityPool', async () => {
         expect(await weth.balanceOf(vault.address)).to.eq(ethDepositAmount.mul(4));
 
-        await expect(vault.pairLiquidityPool(pool.address, ethDepositAmount.mul(4)))
+        await expect(vault.pairLiquidityPool(pool.address, ethDepositAmount.mul(4), 1, 1))
           .to.emit(vault, 'LiquidityDeployed')
           .withArgs(pool.address, ethDepositAmount.mul(4));
 
@@ -218,7 +218,7 @@ describe('Rift Vault Unit tests', () => {
       });
 
       it('should reject unpairLiquidityPool calls from non owner', async () => {
-        await expect(vault.connect(alice).unpairLiquidityPool(pool.address)).to.be.revertedWith(
+        await expect(vault.connect(alice).unpairLiquidityPool(pool.address, 1, 1)).to.be.revertedWith(
           'Ownable: caller is not the owner',
         );
       });
@@ -226,7 +226,7 @@ describe('Rift Vault Unit tests', () => {
       it('should allow owner to unpairLiquidityPool', async () => {
         const initialWethBalance = await weth.balanceOf(vault.address);
 
-        await expect(vault.unpairLiquidityPool(pool.address))
+        await expect(vault.unpairLiquidityPool(pool.address, 1, 1))
           .to.emit(vault, 'LiquidityReturned')
           .withArgs(pool.address);
 

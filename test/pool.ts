@@ -159,16 +159,16 @@ describe('Rift Pool Unit tests', () => {
     });
 
     it('should reject pairLiquidity calls from non-vault', async () => {
-      await expect(tokenMCPool.pairLiquidity(ethDepositAmount)).to.be.revertedWith('Only Vault');
+      await expect(tokenMCPool.pairLiquidity(ethDepositAmount, 1, 1)).to.be.revertedWith('Only Vault');
     });
 
     it('should reject unpairLiquidity calls from non-vault', async () => {
-      await expect(tokenMCPool.unpairLiquidity()).to.be.revertedWith('Only Vault');
+      await expect(tokenMCPool.unpairLiquidity(1, 1)).to.be.revertedWith('Only Vault');
     });
 
     describe('Pair Vaults liquidity', async () => {
       it('should pair and update master chef v1 balances for tokenMC-eth', async () => {
-        await vault.pairLiquidityPool(tokenMCPool.address, tokenMCEthAllocation);
+        await vault.pairLiquidityPool(tokenMCPool.address, tokenMCEthAllocation, 1, 1);
 
         const lpTokensReceived = await tokenMCPool.lpTokenBalance();
         const tokenMCInfo = await masterChef.userInfo(getMasterChefPid(tokenMC.address), tokenMCPool.address);
@@ -177,7 +177,7 @@ describe('Rift Pool Unit tests', () => {
       });
 
       it('should pair and update master chef v2 balances for tokenMC2-weth', async () => {
-        await vault.pairLiquidityPool(tokenMC2Pool.address, tokenMC2EthAllocation);
+        await vault.pairLiquidityPool(tokenMC2Pool.address, tokenMC2EthAllocation, 1, 1);
 
         const lpTokensReceived = await tokenMC2Pool.lpTokenBalance();
         const tokenMC2Info = await masterChefV2.userInfo(getMasterChefPid(tokenMC2.address), tokenMC2Pool.address);
@@ -186,7 +186,7 @@ describe('Rift Pool Unit tests', () => {
       });
 
       it('should pair and update SLP balances for tokenBasic-weth', async () => {
-        await vault.pairLiquidityPool(tokenBasicPool.address, tokenBasicEthAllocation);
+        await vault.pairLiquidityPool(tokenBasicPool.address, tokenBasicEthAllocation, 1, 1);
 
         const lpTokensReceived = await tokenBasicPool.lpTokenBalance();
         const sushiPair = await getERC20(await tokenBasicPool.pair());
@@ -201,7 +201,7 @@ describe('Rift Pool Unit tests', () => {
       });
 
       it('should withdraw tokenMC-weth from master chef and return weth to vault', async () => {
-        await vault.unpairLiquidityPool(tokenMCPool.address);
+        await vault.unpairLiquidityPool(tokenMCPool.address, 1, 1);
 
         const tokenMCInfo = await masterChef.userInfo(getMasterChefPid(tokenMC.address), tokenMCPool.address);
         expect(tokenMCInfo.amount).to.eq(0);
@@ -209,7 +209,7 @@ describe('Rift Pool Unit tests', () => {
       });
 
       it('should withdraw tokenMC2-weth from master chef and return weth to vault', async () => {
-        await vault.unpairLiquidityPool(tokenMC2Pool.address);
+        await vault.unpairLiquidityPool(tokenMC2Pool.address, 1, 1);
 
         const tokenMC2Info = await masterChefV2.userInfo(getMasterChefPid(tokenMC2.address), tokenMC2Pool.address);
         expect(tokenMC2Info.amount).to.eq(0);
@@ -221,7 +221,7 @@ describe('Rift Pool Unit tests', () => {
         const lpTokensReceived = await tokenBasicPool.lpTokenBalance();
         expect(await sushiPair.balanceOf(tokenBasicPool.address)).to.eq(lpTokensReceived);
 
-        await vault.unpairLiquidityPool(tokenBasicPool.address);
+        await vault.unpairLiquidityPool(tokenBasicPool.address, 1, 1);
 
         expect(await sushiPair.balanceOf(tokenBasicPool.address)).to.eq(0);
         expect(await weth.balanceOf(tokenBasicPool.address)).to.eq(0);

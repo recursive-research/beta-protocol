@@ -112,19 +112,29 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
 
     /// @notice called by the contract owner during Phase One, sending WETH to a Pool and
     /// instructing the Pool to deploy the liquidity. Expected to be called on various pools.
+    /// Min amounts should be set by the Owner to prevent frontrunning.
     /// @param _pool address of the pool to which liquidity is being deployed
     /// @param _amount amount of WETH to deploy to _pool
-    function pairLiquidityPool(address _pool, uint256 _amount) external onlyOwner {
+    function pairLiquidityPool(
+        address _pool,
+        uint256 _amount,
+        uint256 _minAmountToken,
+        uint256 _minAmountWETH
+    ) external onlyOwner {
         IWETH(WETH).transfer(_pool, _amount);
-        IPool(_pool).pairLiquidity(_amount);
+        IPool(_pool).pairLiquidity(_amount, _minAmountToken, _minAmountWETH);
         emit LiquidityDeployed(_pool, _amount);
     }
 
     /// @notice called by the contract owner at the end of Phase One, unwinding the deployed liquidity
-    /// and receiving WETH.
+    /// and receiving WETH. Min amounts should be set by the Owner to prevent frontrunning.
     /// @param _pool address of the pool to unwind liquidity from
-    function unpairLiquidityPool(address _pool) external onlyOwner {
-        IPool(_pool).unpairLiquidity();
+    function unpairLiquidityPool(
+        address _pool,
+        uint256 _minAmountToken,
+        uint256 _minAmountWETH
+    ) external onlyOwner {
+        IPool(_pool).unpairLiquidity(_minAmountToken, _minAmountWETH);
         emit LiquidityReturned(_pool);
     }
 
