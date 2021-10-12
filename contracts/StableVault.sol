@@ -37,6 +37,24 @@ contract StableVault is Ownable {
         _;
     }
 
+    /// @notice emitted after a successful deposit
+    /// @param token USDC or USDC
+    /// @param user the address that deposited into the StableVault
+    /// @param amount the amount that was deposited
+    event Deposit(address indexed token, address indexed user, uint256 amount);
+
+    /// @notice emitted after a successful withdrawal
+    /// @param token USDC or USDC
+    /// @param user the address that withdrew from the StableVault
+    /// @param amount The amount of token that was withdrawn
+    event Withdraw(address indexed token, address indexed user, uint256 amount);
+
+    /// @notice emitted after a successful migration
+    /// @param token USDC or USDC
+    /// @param user the address that migrated from the StableVault
+    /// @param amount The amount of token that was migrated
+    event Migration(address indexed token, address indexed user, uint256 amount);
+
     /// @notice allows users to deposit a token before liquidity has been deployed. Mints
     /// the user a StableVaultToken ERC20 based on which token they deposit
     /// @param _token token to deposit - USDC or USDT
@@ -45,12 +63,13 @@ contract StableVault is Ownable {
         require(!liquidityAdded, 'Liquidity already deployed');
         IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
         _token == usdc ? svUsdc.mint(msg.sender, _amount) : svUsdt.mint(msg.sender, _amount);
+        emit Deposit(_token, msg.sender, _amount);
     }
 
     /// @notice allows user to withdraw or migrate from the StableVault at the end. Can only be withdrawn
     /// after the Uniswap LP tokens have been withdraw and converted back to USDC/USDT
     /// @param _token token to deposit - USDC or USDT
-    /// @param _poolV2 if the user wishes to migrate their tokens to Rift's V2 StableVaults,
+    /// @param _stableVaultV2 if the user wishes to migrate their tokens to Rift's V2 StableVaults,
     /// they can do so by setting this parameter as a vaild V2 StableVault address
     function withdrawToken(address _token, address _stableVaultV2)
         external
@@ -65,12 +84,14 @@ contract StableVault is Ownable {
         svToken.burn(msg.sender, amount);
         if (_stableVaultV2 == address(0)) {
             IERC20(_token).safeTransfer(msg.sender, returnAmount);
+            emit Withdraw(_token, msg.sender, returnAmount);
         } else {
             if (_token == usdt) {
                 IERC20(_token).safeApprove(_stableVaultV2, 0);
             }
             IERC20(_token).safeApprove(_stableVaultV2, returnAmount);
             IStableVaultV2(_stableVaultV2).migrateLiquidity(returnAmount, msg.sender);
+            emit Migration(_token, msg.sender, returnAmount);
         }
     }
 

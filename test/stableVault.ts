@@ -45,7 +45,10 @@ describe('Rift Stable Vault Unit tests', () => {
     it('should allow users to deposit usdc', async () => {
       await getTokens(alice, usdc, usdcDepositAmount);
       await usdc.connect(alice).approve(stableVault.address, usdcDepositAmount);
-      await stableVault.connect(alice).depositToken(usdc.address, usdcDepositAmount);
+
+      await expect(stableVault.connect(alice).depositToken(usdc.address, usdcDepositAmount))
+        .to.emit(stableVault, 'Deposit')
+        .withArgs(usdc.address, alice.address, usdcDepositAmount);
 
       expect(await usdc.balanceOf(alice.address)).to.eq(0);
       expect(await usdc.balanceOf(stableVault.address)).to.eq(usdcDepositAmount);
@@ -126,7 +129,9 @@ describe('Rift Stable Vault Unit tests', () => {
       const aliceUsdcBalance = await usdc.balanceOf(alice.address);
       const aliceUsdcShare = availableUsdc.mul(usdcDepositAmount).div(usdcTotalDeposits); // alice and charlie both deposited
 
-      await stableVault.connect(alice).withdrawToken(usdc.address, Addresses.zero);
+      await expect(stableVault.connect(alice).withdrawToken(usdc.address, Addresses.zero))
+        .to.emit(stableVault, 'Withdraw')
+        .withArgs(usdc.address, alice.address, aliceUsdcShare);
 
       expect(await usdc.balanceOf(stableVault.address)).to.eq(availableUsdc.sub(aliceUsdcShare));
       expect(await usdc.balanceOf(alice.address)).to.eq(aliceUsdcBalance.add(aliceUsdcShare));
@@ -136,7 +141,9 @@ describe('Rift Stable Vault Unit tests', () => {
       const stableVaultV2 = await deployStableVaultV2(admin, usdt.address);
       const availableUsdt = await usdt.balanceOf(stableVault.address);
 
-      await stableVault.connect(bob).withdrawToken(usdt.address, stableVaultV2.address);
+      await expect(stableVault.connect(bob).withdrawToken(usdt.address, stableVaultV2.address))
+        .to.emit(stableVault, 'Migration')
+        .withArgs(usdt.address, bob.address, availableUsdt);
 
       expect(await usdt.balanceOf(stableVault.address)).to.eq(0);
       expect(await usdt.balanceOf(stableVaultV2.address)).to.eq(availableUsdt);
