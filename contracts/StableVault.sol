@@ -79,7 +79,7 @@ contract StableVault is Ownable {
         uint256 usdcBalance = IERC20(usdc).balanceOf(address(this));
         uint256 usdtBalance = IERC20(usdt).balanceOf(address(this));
 
-        IERC20(usdc).safeApprove(uniswapRouter, usdcBalance);
+        IERC20(usdc).approve(uniswapRouter, usdcBalance);
         IERC20(usdt).safeApprove(uniswapRouter, usdtBalance);
 
         IUniswapV2Router02(uniswapRouter).addLiquidity(
@@ -97,7 +97,7 @@ contract StableVault is Ownable {
 
     function removeLiquidity(uint256 _minUsdc, uint256 _minUsdt) external onlyOwner duringPhase(Phases.Two) {
         uint256 lpTokenBalance = IERC20(pair).balanceOf(address(this));
-        IERC20(pair).safeApprove(uniswapRouter, lpTokenBalance);
+        IERC20(pair).approve(uniswapRouter, lpTokenBalance);
         IUniswapV2Router02(uniswapRouter).removeLiquidity(
             usdc,
             usdt,
