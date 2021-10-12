@@ -3,7 +3,18 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { BigNumber } from 'ethers';
 import { Artifact } from 'hardhat/types';
 
-import { ERC20, IMasterChef, IMasterChefV2, Vault, VaultV2Mock, Pool, PoolV2Mock, IWETH } from '../typechain';
+import {
+  ERC20,
+  IMasterChef,
+  IMasterChefV2,
+  Vault,
+  VaultV2Mock,
+  Pool,
+  PoolV2Mock,
+  IWETH,
+  StableVault,
+  StableVaultV2Mock,
+} from '../typechain';
 import { deployContract } from 'ethereum-waffle';
 import { Contracts, getMasterChefPid, getSushiRewarder, getWhale, Tokens } from './constants';
 
@@ -31,6 +42,16 @@ export async function deployPool(admin: SignerWithAddress, vault: Vault, token: 
 export async function deployPoolV2(admin: SignerWithAddress, address: string): Promise<PoolV2Mock> {
   const poolArtifact: Artifact = await hre.artifacts.readArtifact('PoolV2Mock');
   return (await deployContract(admin, poolArtifact, [address])) as PoolV2Mock;
+}
+
+export async function deployStableVault(admin: SignerWithAddress): Promise<StableVault> {
+  const stableVaultArtifact: Artifact = await hre.artifacts.readArtifact('StableVault');
+  return (await deployContract(admin, stableVaultArtifact)) as StableVault;
+}
+
+export async function deployStableVaultV2(admin: SignerWithAddress, address: string): Promise<StableVaultV2Mock> {
+  const stableVaultV2Artifact: Artifact = await hre.artifacts.readArtifact('StableVaultV2Mock');
+  return (await deployContract(admin, stableVaultV2Artifact, [address])) as StableVaultV2Mock;
 }
 
 // Helper function to get existing contracts
