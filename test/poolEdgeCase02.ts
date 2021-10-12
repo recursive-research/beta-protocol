@@ -7,7 +7,7 @@ import { Vault, ERC20, Pool, IWETH, ERC20__factory } from '../typechain';
 import { deployVault, deployPool, getERC20, getTokens, getWETH, mineBlock } from './utils';
 import { Addresses, Tokens } from './constants';
 
-describe('Rift Vault Edge Case - Exact Fixed Rate returned', () => {
+describe('Rift Pool Edge Case - Exact Fixed Rate returned', () => {
   const fixedRate = BigNumber.from('0');
   const maxEth = ethers.utils.parseEther('50');
 

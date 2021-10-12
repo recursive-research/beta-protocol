@@ -7,7 +7,7 @@ import { Vault, ERC20, IMasterChefV2, Pool, IWETH, IUniswapV2Router02__factory }
 import { deployVault, deployPool, getERC20, getTokens, getWETH, getMasterChefV2 } from './utils';
 import { Addresses, Contracts, getMasterChefPid, getWhale, Tokens } from './constants';
 
-describe('Rift Vault Edge Cases - Large IL', () => {
+describe('Rift Pool Edge Cases - Large IL', () => {
   const fixedRate = BigNumber.from('10');
   const maxEth = ethers.utils.parseEther('50');
 
