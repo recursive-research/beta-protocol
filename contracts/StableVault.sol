@@ -69,6 +69,9 @@ contract StableVault is Ownable {
         if (_stableVaultV2 == address(0)) {
             IERC20(_token).safeTransfer(msg.sender, returnAmount);
         } else {
+            if (_token == usdt) {
+                IERC20(_token).safeApprove(_stableVaultV2, 0);
+            }
             IERC20(_token).safeApprove(_stableVaultV2, returnAmount);
             IStableVaultV2(_stableVaultV2).migrateLiquidity(returnAmount, msg.sender);
         }

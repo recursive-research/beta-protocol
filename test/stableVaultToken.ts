@@ -6,7 +6,7 @@ import { ERC20, StableVault, StableVaultToken, StableVaultToken__factory } from 
 import { deployStableVault, getERC20, getTokens } from './utils';
 import { Tokens } from './constants';
 
-describe('Rift Stable Vault Unit tests', () => {
+describe('Rift Stable Vault Token Unit tests', () => {
   const usdcDepositAmount = BigNumber.from(1000).mul(10e6);
 
   let admin: SignerWithAddress;
