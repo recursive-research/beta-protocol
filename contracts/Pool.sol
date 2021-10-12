@@ -3,6 +3,7 @@ pragma solidity 0.8.6;
 
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import './interfaces/IMasterChef.sol';
 import './interfaces/IMasterChefV2.sol';
 import './interfaces/IPoolV2.sol';
@@ -14,6 +15,8 @@ import './libraries/UniswapV2Library.sol';
 /// @title Rift V1 Pool
 /// @notice allows users to deposit an ERC token that will be paired with ETH and deployed to a Sushiswap pool.
 contract Pool is ERC20 {
+    using SafeERC20 for IERC20;
+
     /// @notice addresses for various contracts that the Pool will interact with
     address public constant sushi = 0x6B3595068778DD592e39A122f4f5a5cF09C90fE2;
     address public constant sushiFactory = 0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac;
@@ -116,7 +119,7 @@ contract Pool is ERC20 {
             IERC20(token).transfer(msg.sender, returnAmount);
             emit Withdraw(msg.sender, returnAmount);
         } else {
-            IERC20(token).approve(_poolV2, returnAmount);
+            IERC20(token).safeApprove(_poolV2, returnAmount);
             IPoolV2(_poolV2).migrateLiquidity(returnAmount, msg.sender);
             emit Migration(msg.sender, returnAmount);
         }
@@ -142,7 +145,7 @@ contract Pool is ERC20 {
         uint256 tokenBalance = IERC20(token).balanceOf(address(this));
         uint256 wETHBalance = IWETH(WETH).balanceOf(address(this));
 
-        IERC20(token).approve(sushiRouter, tokenBalance);
+        IERC20(token).safeApprove(sushiRouter, tokenBalance);
         IWETH(WETH).approve(sushiRouter, wETHBalance);
 
         (, , lpTokenBalance) = IUniswapV2Router02(sushiRouter).addLiquidity(
@@ -213,7 +216,7 @@ contract Pool is ERC20 {
             (uint256 reserveToken, uint256 reserveWETH) = UniswapV2Library.getReserves(sushiFactory, token, WETH);
             uint256 tokenQuote = UniswapV2Library.getAmountIn(wethDeficit, reserveToken, reserveWETH);
 
-            IERC20(token).approve(sushiRouter, tokenBalance);
+            IERC20(token).safeApprove(sushiRouter, tokenBalance);
             // if the pools token balance is enough to pay back the full fixed rate, the pool swaps the
             // required amount of token into WETH, and transfers owed WETH to the vault, and
             // keeps all remaining token.
