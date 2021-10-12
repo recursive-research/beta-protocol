@@ -135,10 +135,15 @@ contract Pool is ERC20 {
     /// @notice function to add liquidity to the token <> WETH SushiSwap pool and stake the SLP tokens
     /// Can only be called by the Vault. The only Vault function that calls this is `pairLiquidityPool`
     /// which in turn is only callable by the Vault Owner. The Vault sends some amount of ETH to the Pool, then
-    /// calls this function
+    /// calls this function. The Vault owner can set min amounts, but sufficient actions should be taken
+    /// to prevent frontrunning.
     /// @param _amount the amount of WETH that was sent by the Vault to this Pool. And the amount that the
     /// Pool must provide a return on by the end of Phase One.
-    function pairLiquidity(uint256 _amount) external onlyVault {
+    function pairLiquidity(
+        uint256 _amount,
+        uint256 _minAmountToken,
+        uint256 _minAmountWETH
+    ) external onlyVault {
         initialWethDeposit = _amount;
         depositTimestamp = block.timestamp;
 
@@ -153,8 +158,8 @@ contract Pool is ERC20 {
             WETH,
             tokenBalance,
             wETHBalance,
-            0,
-            0,
+            _minAmountToken,
+            _minAmountWETH,
             address(this),
             block.timestamp
         );
@@ -168,8 +173,9 @@ contract Pool is ERC20 {
     /// the Pool may need to swap some of token for WETH to return the required fixed rate. If there is
     /// enough WETH to return the required amount, any remaining WETH is swapped for the token.
     /// Can only be called by the Vault. The only Vault function that calls this is `unpairLiquidityPool`
-    /// which in turn is only callable by the Vault Owner.
-    function unpairLiquidity() external onlyVault {
+    /// which in turn is only callable by the Vault Owner. The Vault owner can set min amounts, but
+    /// sufficient actions should be taken to prevent frontrunning.
+    function unpairLiquidity(uint256 _minAmountToken, uint256 _minAmountWETH) external onlyVault {
         unstake(lpTokenBalance);
 
         IERC20(pair).approve(sushiRouter, lpTokenBalance);
@@ -177,8 +183,8 @@ contract Pool is ERC20 {
             token,
             WETH,
             lpTokenBalance,
-            0,
-            0,
+            _minAmountToken,
+            _minAmountWETH,
             address(this),
             block.timestamp
         );
