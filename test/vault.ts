@@ -326,6 +326,11 @@ describe('Rift Vault Unit tests', () => {
       );
     });
 
+    it('should allow users to view their withdrawable balance', async () => {
+      const vaultEthBalance = await ethers.provider.getBalance(vault.address);
+      expect(await vault.ethShare(alice.address)).to.eq(vaultEthBalance);
+    });
+
     describe('Withdraw', async () => {
       it('should reject withdraw when user has no balance', async () => {
         await expect(vault.connect(bob).withdrawEth(Addresses.zero)).to.be.revertedWith('User has no balance');
