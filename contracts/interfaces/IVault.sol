@@ -11,4 +11,6 @@ interface IVault {
     function fixedRate() external view returns (uint256);
 
     function phase() external view returns (Phases);
+
+    function depositTimestamp() external view returns (uint256);
 }
