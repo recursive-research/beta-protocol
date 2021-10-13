@@ -246,21 +246,23 @@ describe('Rift Vault Unit tests', () => {
       });
 
       it('should reject unpairLiquidityPool calls from non owner', async () => {
-        await expect(vault.connect(alice).unpairLiquidityPool(pool.address, 1, 1)).to.be.revertedWith(
+        await expect(vault.connect(alice).unpairLiquidityPool(pool.address, 1, 1, 1)).to.be.revertedWith(
           'Ownable: caller is not the owner',
         );
       });
 
       it('should allow owner to unpairLiquidityPool', async () => {
         expect(await weth.balanceOf(vault.address)).to.eq(0);
+        const lpTokenBalance = await pool.lpTokenBalance();
 
-        await vault.unpairLiquidityPool(pool.address, 1, 1);
+        await vault.unpairLiquidityPool(pool.address, lpTokenBalance, 1, 1);
 
         expect(await weth.balanceOf(vault.address)).to.be.gt(ethDepositAmount);
       });
 
       it('should emit event on unpairLiquidityPool call', async () => {
-        await expect(vault.unpairLiquidityPool(pool.address, 1, 1))
+        const lpTokenBalance = await pool.lpTokenBalance();
+        await expect(vault.unpairLiquidityPool(pool.address, lpTokenBalance, 1, 1))
           .to.emit(vault, 'LiquidityReturned')
           .withArgs(pool.address);
       });
@@ -270,7 +272,9 @@ describe('Rift Vault Unit tests', () => {
       beforeEach(async () => {
         await vault.wrapEth();
         await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1);
-        await vault.unpairLiquidityPool(pool.address, 1, 1);
+        await vault.setDepositTimestamp();
+        const lpTokenBalance = await pool.lpTokenBalance();
+        await vault.unpairLiquidityPool(pool.address, lpTokenBalance, 1, 1);
       });
 
       it('should reject unwrapEth calls from non owner', async () => {
@@ -308,7 +312,9 @@ describe('Rift Vault Unit tests', () => {
 
       await vault.wrapEth();
       await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1);
-      await vault.unpairLiquidityPool(pool.address, 1, 1);
+      await vault.setDepositTimestamp();
+      const lpTokenBalance = await pool.lpTokenBalance();
+      await vault.unpairLiquidityPool(pool.address, lpTokenBalance, 1, 1);
       await vault.unwrapEth();
 
       await vault.nextPhase();

@@ -159,7 +159,7 @@ describe('Rift Pool Unit tests', () => {
       });
 
       it('should reject unpairLiquidity calls from non-vault', async () => {
-        await expect(pool.unpairLiquidity(1, 1)).to.be.revertedWith('Only Vault');
+        await expect(pool.unpairLiquidity(1, 1, 1)).to.be.revertedWith('Only Vault');
       });
 
       it('should pair hold LP tokens for token-eth', async () => {
@@ -174,7 +174,8 @@ describe('Rift Pool Unit tests', () => {
         const pair = IERC20__factory.connect(await pool.pair(), ethers.provider);
         await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1);
         await vault.setDepositTimestamp();
-        await vault.unpairLiquidityPool(pool.address, 1, 1);
+        const lpTokenBalance = await pool.lpTokenBalance();
+        await vault.unpairLiquidityPool(pool.address, lpTokenBalance, 1, 1);
 
         expect(await pair.balanceOf(pool.address)).to.eq(0);
         expect(await weth.balanceOf(pool.address)).to.eq(0);
@@ -184,8 +185,9 @@ describe('Rift Pool Unit tests', () => {
         const fixedReturn = ethers.BigNumber.from(3170979199).add(3170979198);
         await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1);
         await vault.setDepositTimestamp();
+        const lpTokenBalance = await pool.lpTokenBalance();
         await getTokens(pool, weth, fixedReturn);
-        await vault.unpairLiquidityPool(pool.address, 1, 1);
+        await vault.unpairLiquidityPool(pool.address, lpTokenBalance, 1, 1);
       });
 
       it('should swap token for weth when fixed rate is greater than returns', async () => {
@@ -194,6 +196,7 @@ describe('Rift Pool Unit tests', () => {
 
         await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1);
         await vault.setDepositTimestamp();
+        const lpTokenBalance = await pool.lpTokenBalance();
         await getTokens(bob, token, tokenTradeAmount);
         await token.connect(bob).approve(sushiRouter.address, tokenTradeAmount);
 
@@ -201,7 +204,7 @@ describe('Rift Pool Unit tests', () => {
           .connect(bob)
           .swapExactTokensForTokens(tokenTradeAmount, 0, [token.address, weth.address], bob.address, 2000000000);
 
-        await vault.unpairLiquidityPool(pool.address, 1, 1);
+        await vault.unpairLiquidityPool(pool.address, lpTokenBalance, 1, 1);
         expect(await weth.balanceOf(pool.address)).to.eq(0);
         expect(await token.balanceOf(pool.address)).to.eq(0);
       });
@@ -235,7 +238,9 @@ describe('Rift Pool Unit tests', () => {
       it('should withdraw token-weth from master chef and return weth to vault', async () => {
         await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1);
         await vault.setDepositTimestamp();
-        await vault.unpairLiquidityPool(pool.address, 1, 1);
+        const lpTokenBalance = await pool.lpTokenBalance();
+
+        await vault.unpairLiquidityPool(pool.address, lpTokenBalance, 1, 1);
 
         const tokenInfo = await masterChef.userInfo(getMasterChefPid(token.address), pool.address);
         expect(tokenInfo.amount).to.eq(0);
@@ -271,7 +276,8 @@ describe('Rift Pool Unit tests', () => {
       it('should withdraw token-weth from master chef v2 and return weth to vault', async () => {
         await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1);
         await vault.setDepositTimestamp();
-        await vault.unpairLiquidityPool(pool.address, 1, 1);
+        const lpTokenBalance = await pool.lpTokenBalance();
+        await vault.unpairLiquidityPool(pool.address, lpTokenBalance, 1, 1);
 
         const tokenInfo = await masterChef.userInfo(getMasterChefPid(token.address), pool.address);
         expect(tokenInfo.amount).to.eq(0);
@@ -297,7 +303,8 @@ describe('Rift Pool Unit tests', () => {
 
       await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1);
       await vault.setDepositTimestamp();
-      await vault.unpairLiquidityPool(pool.address, 1, 1);
+      const lpTokenBalance = await pool.lpTokenBalance();
+      await vault.unpairLiquidityPool(pool.address, lpTokenBalance, 1, 1);
 
       await vault.nextPhase();
       await vault.unwrapEth();

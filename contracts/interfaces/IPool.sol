@@ -9,5 +9,9 @@ interface IPool {
         uint256 _minAmountWETH
     ) external;
 
-    function unpairLiquidity(uint256 _minAmountToken, uint256 _minAmountWETH) external;
+    function unpairLiquidity(
+        uint256 _lpTokenAmount,
+        uint256 _minAmountToken,
+        uint256 _minAmountWETH
+    ) external;
 }

@@ -139,7 +139,7 @@ contract Pool is ERC20 {
     /// Pool must provide a return on by the end of Phase One.
     /// @param _amountToken the desired amount of token to add as liquidity to the sushi pool
     /// @param _minAmountWeth the minimum amount of WETH to deposit
-    /// @param _minAmounttoken the minimum amount of token to deposit
+    /// @param _minAmountToken the minimum amount of token to deposit
     function pairLiquidity(
         uint256 _amountWeth,
         uint256 _amountToken,
@@ -177,14 +177,19 @@ contract Pool is ERC20 {
     /// sufficient actions should be taken to prevent frontrunning.
     /// @param _minAmountWeth the minimum amount of WETH to receive
     /// @param _minAmountToken the minimum amount of token to receive
-    function unpairLiquidity(uint256 _minAmountWeth, uint256 _minAmountToken) external onlyVault {
-        unstake(lpTokenBalance);
+    /// @param _lpTokenAmount the amount of LP tokens to remove
+    function unpairLiquidity(
+        uint256 _lpTokenAmount,
+        uint256 _minAmountWeth,
+        uint256 _minAmountToken
+    ) external onlyVault {
+        unstake(_lpTokenAmount);
 
-        IERC20(pair).approve(sushiRouter, lpTokenBalance);
+        IERC20(pair).approve(sushiRouter, _lpTokenAmount);
         IUniswapV2Router02(sushiRouter).removeLiquidity(
             WETH,
             token,
-            lpTokenBalance,
+            _lpTokenAmount,
             _minAmountWeth,
             _minAmountToken,
             address(this),

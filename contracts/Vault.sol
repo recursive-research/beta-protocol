@@ -141,10 +141,11 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     /// @param _minAmountToken the minimum amount of token to deposit
     function unpairLiquidityPool(
         address _pool,
+        uint256 _lpTokenAmount,
         uint256 _minAmountWeth,
         uint256 _minAmountToken
     ) external onlyOwner {
-        IPool(_pool).unpairLiquidity(_minAmountWeth, _minAmountToken);
+        IPool(_pool).unpairLiquidity(_lpTokenAmount, _minAmountWeth, _minAmountToken);
         emit LiquidityReturned(_pool);
     }
 
