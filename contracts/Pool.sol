@@ -137,6 +137,9 @@ contract Pool is ERC20 {
     /// to prevent frontrunning.
     /// @param _amountWeth the amount of WETH that was sent by the Vault to this Pool. And the amount that the
     /// Pool must provide a return on by the end of Phase One.
+    /// @param _amountToken the desired amount of token to add as liquidity to the sushi pool
+    /// @param _minAmountWeth the minimum amount of WETH to deposit
+    /// @param _minAmounttoken the minimum amount of token to deposit
     function pairLiquidity(
         uint256 _amountWeth,
         uint256 _amountToken,
@@ -172,6 +175,8 @@ contract Pool is ERC20 {
     /// Can only be called by the Vault. The only Vault function that calls this is `unpairLiquidityPool`
     /// which in turn is only callable by the Vault Owner. The Vault owner can set min amounts, but
     /// sufficient actions should be taken to prevent frontrunning.
+    /// @param _minAmountWeth the minimum amount of WETH to receive
+    /// @param _minAmountToken the minimum amount of token to receive
     function unpairLiquidity(uint256 _minAmountWeth, uint256 _minAmountToken) external onlyVault {
         unstake(lpTokenBalance);
 
@@ -252,32 +257,32 @@ contract Pool is ERC20 {
     /// @notice helper function to stake SLP tokens based on the sushiRewarder type. A virtual
     /// function so that any tokens with unique staking mechanics can simply inherit this contract
     /// and define their own stake function.
-    /// @param _lpTokenBalance the amount of LP tokens to stake, received after depositing
+    /// @param _lpTokenAmount the amount of LP tokens to stake, received after depositing
     /// liquidity into the Sushi Pool
-    function stake(uint256 _lpTokenBalance) internal virtual {
+    function stake(uint256 _lpTokenAmount) internal virtual {
         if (sushiRewarder == SushiRewarder.None) {
             return;
         } else if (sushiRewarder == SushiRewarder.MasterChef) {
-            IERC20(pair).approve(masterChef, _lpTokenBalance);
-            IMasterChef(masterChef).deposit(pid, _lpTokenBalance);
+            IERC20(pair).approve(masterChef, _lpTokenAmount);
+            IMasterChef(masterChef).deposit(pid, _lpTokenAmount);
         } else {
-            IERC20(pair).approve(masterChefV2, _lpTokenBalance);
-            IMasterChefV2(masterChefV2).deposit(pid, _lpTokenBalance, address(this));
+            IERC20(pair).approve(masterChefV2, _lpTokenAmount);
+            IMasterChefV2(masterChefV2).deposit(pid, _lpTokenAmount, address(this));
         }
     }
 
     /// @notice helper function to unstake SLP tokens based on the sushiRewarder type. A virtual
     /// function so that any tokens with unique staking mechanics can simply inherit this contract
     /// and define their own unstake function
-    /// @param _lpTokenBalance the amount of LP tokens to stake, received after depositing
+    /// @param _lpTokenAmount the amount of LP tokens to stake, received after depositing
     /// liquidity into the Sushi Pool
-    function unstake(uint256 _lpTokenBalance) internal virtual {
+    function unstake(uint256 _lpTokenAmount) internal virtual {
         if (sushiRewarder == SushiRewarder.None) {
             return;
         } else if (sushiRewarder == SushiRewarder.MasterChef) {
-            IMasterChef(masterChef).withdraw(pid, _lpTokenBalance);
+            IMasterChef(masterChef).withdraw(pid, _lpTokenAmount);
         } else {
-            IMasterChefV2(masterChefV2).withdrawAndHarvest(pid, _lpTokenBalance, address(this));
+            IMasterChefV2(masterChefV2).withdrawAndHarvest(pid, _lpTokenAmount, address(this));
         }
 
         uint256 sushiBalance = IERC20(sushi).balanceOf(address(this));

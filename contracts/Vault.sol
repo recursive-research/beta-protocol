@@ -76,6 +76,7 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     }
 
     /// @notice allows users to deposit WETH during Phase zero and receive a staking token 1:1
+    /// @param _amount the amount of WETH to deposit
     function depositWeth(uint256 _amount) external duringPhase(Phases.Zero) {
         require(totalSupply() + _amount <= maxEth, 'Max eth cap has been hit');
         IWETH(WETH).transferFrom(msg.sender, address(this), _amount);
@@ -118,6 +119,9 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     /// Min amounts should be set by the Owner to prevent frontrunning.
     /// @param _pool address of the pool to which liquidity is being deployed
     /// @param _amountWeth amount of WETH to deploy to _pool
+    /// @param _amountToken the desired amount of token to add as liquidity in the Pool
+    /// @param _minAmountWeth the minimum amount of WETH to deposit
+    /// @param _minAmountToken the minimum amount of token to deposit
     function pairLiquidityPool(
         address _pool,
         uint256 _amountWeth,
@@ -133,12 +137,14 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     /// @notice called by the contract owner at the end of Phase One, unwinding the deployed liquidity
     /// and receiving WETH. Min amounts should be set by the Owner to prevent frontrunning.
     /// @param _pool address of the pool to unwind liquidity from
+    /// @param _minAmountWeth the minimum amount of WETH to deposit
+    /// @param _minAmountToken the minimum amount of token to deposit
     function unpairLiquidityPool(
         address _pool,
-        uint256 _minAmountWETH,
+        uint256 _minAmountWeth,
         uint256 _minAmountToken
     ) external onlyOwner {
-        IPool(_pool).unpairLiquidity(_minAmountWETH, _minAmountToken);
+        IPool(_pool).unpairLiquidity(_minAmountWeth, _minAmountToken);
         emit LiquidityReturned(_pool);
     }
 
