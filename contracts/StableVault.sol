@@ -4,6 +4,7 @@ pragma solidity 0.8.6;
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
+import '@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol';
 import './interfaces/IStableVaultV2.sol';
 import './interfaces/IUniswapV2Router02.sol';
 import './libraries/UniswapV2Library.sol';
@@ -17,6 +18,7 @@ contract StableVault is Ownable {
     /// @notice addresses for various contracts that the Pool will interact with
     address public constant uniswapFactory = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
     address public constant uniswapRouter = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+    address public constant uniswapV3Router = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
     address public constant usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address public constant usdt = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
 
@@ -86,9 +88,7 @@ contract StableVault is Ownable {
             IERC20(_token).safeTransfer(msg.sender, returnAmount);
             emit Withdraw(_token, msg.sender, returnAmount);
         } else {
-            if (_token == usdt) {
-                IERC20(_token).safeApprove(_stableVaultV2, 0);
-            }
+            IERC20(_token).safeApprove(_stableVaultV2, 0);
             IERC20(_token).safeApprove(_stableVaultV2, returnAmount);
             IStableVaultV2(_stableVaultV2).migrateLiquidity(returnAmount, msg.sender);
             emit Migration(_token, msg.sender, returnAmount);
@@ -96,17 +96,50 @@ contract StableVault is Ownable {
     }
 
     /// @notice called by the owner after tokens have been deposited. Adds maximum amounts
-    /// of USDT and USDC to the UniswapV2 Pool
+    /// of USDT and USDC to the UniswapV2 Pool. If the ratio of USDC <> USDT is imbalanced
+    /// the caller of this function can specify an amount to swap that will balance the ratio
     /// @param _minUsdc minimum amount of USDC to submit to the Pool. Set by the owner
     /// to prevent frontrunning
     /// @param _minUsdt minimum amount of USDT to submit to the Pool. Set by the owner
     /// to prevent frontrunning
-    function addLiquidity(uint256 _minUsdc, uint256 _minUsdt) external onlyOwner {
+    /// @param _swapAmountIn if swapping imbalanced tokens, the amount in to swap
+    /// @param _swapAmountOutMin if swapping imbalanced tokens, the minimum amount to receive
+    /// on the swap
+    /// @param _swapUsdc if true, swap USDC for USDT. If false, the opposite.
+    function addLiquidity(
+        uint256 _minUsdc,
+        uint256 _minUsdt,
+        uint256 _swapAmountIn,
+        uint256 _swapAmountOutMin,
+        bool _swapUsdc
+    ) external onlyOwner {
         require(!liquidityRemoved, 'Liquidity already removed');
+
+        if (_swapAmountIn > 0) {
+            address tokenIn = _swapUsdc ? usdc : usdt;
+            address tokenOut = _swapUsdc ? usdt : usdc;
+
+            IERC20(tokenIn).safeApprove(uniswapV3Router, 0);
+            IERC20(tokenIn).safeApprove(uniswapV3Router, _swapAmountIn);
+            ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+                tokenIn: tokenIn,
+                tokenOut: tokenOut,
+                fee: 500,
+                recipient: address(this),
+                deadline: block.timestamp,
+                amountIn: _swapAmountIn,
+                amountOutMinimum: _swapAmountOutMin,
+                sqrtPriceLimitX96: 0
+            });
+
+            ISwapRouter(uniswapV3Router).exactInputSingle(params);
+        }
+
         uint256 usdcBalance = IERC20(usdc).balanceOf(address(this));
         uint256 usdtBalance = IERC20(usdt).balanceOf(address(this));
 
         IERC20(usdc).approve(uniswapRouter, usdcBalance);
+        IERC20(usdt).safeApprove(uniswapRouter, 0);
         IERC20(usdt).safeApprove(uniswapRouter, usdtBalance);
 
         IUniswapV2Router02(uniswapRouter).addLiquidity(
@@ -123,12 +156,23 @@ contract StableVault is Ownable {
     }
 
     /// @notice called by the owner after liquidity has been deployed to remove liquidity
-    /// from the UniswapV2 pool
+    /// from the UniswapV2 pool. if the pool was imbalanced, the caller of this function can
+    /// specify some amount swap back to an even balance.
     /// @param _minUsdc minimum amount of USDC to receive from the Pool. Set by the owner
     /// to prevent frontrunning
     /// @param _minUsdt minimum amount of USDT to receive from the Pool. Set by the owner
     /// to prevent frontrunning
-    function removeLiquidity(uint256 _minUsdc, uint256 _minUsdt) external onlyOwner {
+    /// @param _swapAmountIn if swapping imbalanced tokens, the amount in to swap
+    /// @param _swapAmountOutMin if swapping imbalanced tokens, the minimum amount to receive
+    /// on the swap
+    /// @param _swapUsdc if true, swap USDC for USDT. If false, the opposite.
+    function removeLiquidity(
+        uint256 _minUsdc,
+        uint256 _minUsdt,
+        uint256 _swapAmountIn,
+        uint256 _swapAmountOutMin,
+        bool _swapUsdc
+    ) external onlyOwner {
         require(liquidityAdded, 'Liquidity not yet deployed');
         uint256 lpTokenBalance = IERC20(pair).balanceOf(address(this));
         IERC20(pair).approve(uniswapRouter, lpTokenBalance);
@@ -141,6 +185,27 @@ contract StableVault is Ownable {
             address(this),
             block.timestamp
         );
+
+        if (_swapAmountIn > 0) {
+            address tokenIn = _swapUsdc ? usdc : usdt;
+            address tokenOut = _swapUsdc ? usdt : usdc;
+
+            IERC20(tokenIn).safeApprove(uniswapV3Router, 0);
+            IERC20(tokenIn).safeApprove(uniswapV3Router, _swapAmountIn);
+            ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+                tokenIn: tokenIn,
+                tokenOut: tokenOut,
+                fee: 500,
+                recipient: address(this),
+                deadline: block.timestamp,
+                amountIn: _swapAmountIn,
+                amountOutMinimum: _swapAmountOutMin,
+                sqrtPriceLimitX96: 0
+            });
+
+            ISwapRouter(uniswapV3Router).exactInputSingle(params);
+        }
+
         liquidityRemoved = true;
     }
 }

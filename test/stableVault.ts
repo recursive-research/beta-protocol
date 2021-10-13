@@ -7,14 +7,21 @@ import { deployStableVault, deployStableVaultV2, getERC20, getTokens } from './u
 import { Addresses, Tokens } from './constants';
 
 describe('Rift Stable Vault Unit tests', () => {
-  const usdcDepositAmount = BigNumber.from(1000).mul(10e6);
+  const usdcDepositAmount = BigNumber.from(1000).mul(1e6);
   const usdcTotalDeposits = usdcDepositAmount.mul(2);
-  const usdtDepositAmount = BigNumber.from(500).mul(10e6);
+  const usdtDepositAmount = BigNumber.from(500).mul(1e6);
+
+  const swapInUsdcAmount = BigNumber.from(750).mul(1e6);
+  const swapOutUsdtAmount = BigNumber.from(745).mul(1e6);
+
+  const swapInUsdtAmount = BigNumber.from(745).mul(1e6);
+  const swapOutUsdcAmount = BigNumber.from(740).mul(1e6);
 
   let admin: SignerWithAddress;
   let alice: SignerWithAddress;
   let bob: SignerWithAddress;
   let charlie: SignerWithAddress;
+  let rando: SignerWithAddress;
 
   let usdc: ERC20;
   let usdt: ERC20;
@@ -25,7 +32,7 @@ describe('Rift Stable Vault Unit tests', () => {
   before(async () => {
     const signers: SignerWithAddress[] = await ethers.getSigners();
 
-    [admin, alice, bob, charlie] = signers;
+    [admin, alice, bob, charlie, rando] = signers;
 
     usdc = await getERC20(Tokens.usdc);
     usdt = await getERC20(Tokens.usdt);
@@ -70,7 +77,7 @@ describe('Rift Stable Vault Unit tests', () => {
     });
 
     it('should not allow owner to remove liquidity', async () => {
-      await expect(stableVault.removeLiquidity(0, 0)).to.be.revertedWith('Liquidity not yet deployed');
+      await expect(stableVault.removeLiquidity(0, 0, 0, 0, true)).to.be.revertedWith('Liquidity not yet deployed');
     });
 
     it('should reject deposits of invalid tokens', async () => {
@@ -82,7 +89,7 @@ describe('Rift Stable Vault Unit tests', () => {
 
   describe('Phase 1', async () => {
     it('should allow owner to add liquidity', async () => {
-      await stableVault.addLiquidity(0, 0);
+      await stableVault.addLiquidity(0, 0, swapInUsdcAmount, swapOutUsdtAmount, true);
 
       expect(await usdc.balanceOf(stableVault.address)).to.be.lt(usdcTotalDeposits);
       expect(await usdt.balanceOf(stableVault.address)).to.be.lt(usdtDepositAmount);
@@ -108,14 +115,15 @@ describe('Rift Stable Vault Unit tests', () => {
       const initialUsdcBalance = await usdc.balanceOf(stableVault.address);
       const initialUsdtBalance = await usdt.balanceOf(stableVault.address);
 
-      await stableVault.removeLiquidity(0, 0);
+      await stableVault.removeLiquidity(0, 0, swapInUsdtAmount, swapOutUsdcAmount, false);
+
       expect(await uniPool.balanceOf(stableVault.address)).to.eq(0);
       expect(await usdc.balanceOf(stableVault.address)).to.be.gt(initialUsdcBalance);
       expect(await usdt.balanceOf(stableVault.address)).to.be.gt(initialUsdtBalance);
     });
 
     it('should not allow owner to deploy liquidity', async () => {
-      await expect(stableVault.addLiquidity(0, 0)).to.be.revertedWith('Liquidity already removed');
+      await expect(stableVault.addLiquidity(0, 0, 0, 0, false)).to.be.revertedWith('Liquidity already removed');
     });
 
     it('should reject deposits', async () => {
@@ -165,6 +173,55 @@ describe('Rift Stable Vault Unit tests', () => {
       await expect(stableVault.connect(alice).withdrawToken(usdc.address, Addresses.zero)).to.be.revertedWith(
         'No balance to withdraw',
       );
+    });
+  });
+
+  describe('Handle the case that no swap is made on add or remove liquidity', async () => {
+    before(async () => {
+      stableVault = await deployStableVault(admin);
+    });
+
+    it('allows deposits', async () => {
+      await getTokens(charlie, usdc, usdcDepositAmount);
+      await usdc.connect(charlie).approve(stableVault.address, usdcDepositAmount);
+      await stableVault.connect(charlie).depositToken(usdc.address, usdcDepositAmount);
+
+      expect(await usdc.balanceOf(charlie.address)).to.eq(0);
+      expect(await usdc.balanceOf(stableVault.address)).to.eq(usdcDepositAmount);
+
+      await getTokens(rando, usdt, usdtDepositAmount);
+      await usdt.connect(rando).approve(stableVault.address, usdtDepositAmount);
+      await stableVault.connect(rando).depositToken(usdt.address, usdtDepositAmount);
+
+      expect(await usdt.balanceOf(rando.address)).to.eq(0);
+      expect(await usdt.balanceOf(stableVault.address)).to.eq(usdtDepositAmount);
+    });
+
+    it('allows owner to deploy liquidity without swapping', async () => {
+      await stableVault.addLiquidity(0, 0, 0, 0, true);
+
+      expect(await usdc.balanceOf(stableVault.address)).to.lt(usdcDepositAmount);
+      expect(await usdt.balanceOf(stableVault.address)).to.eq(0);
+
+      expect(await uniPool.balanceOf(stableVault.address)).to.be.gt(0);
+    });
+
+    it('allows owner to remove liquidity without swapping', async () => {
+      await stableVault.removeLiquidity(0, 0, 0, 0, true);
+
+      expect(await uniPool.balanceOf(stableVault.address)).to.eq(0);
+      expect(await usdc.balanceOf(stableVault.address)).to.be.closeTo(usdcDepositAmount, 1);
+      expect(await usdt.balanceOf(stableVault.address)).to.be.closeTo(usdtDepositAmount, 1);
+    });
+
+    it('allows users to withdraw', async () => {
+      const availableUsdc = await usdc.balanceOf(stableVault.address);
+      const charlieUsdcBalance = await usdc.balanceOf(charlie.address);
+
+      await stableVault.connect(charlie).withdrawToken(usdc.address, Addresses.zero);
+
+      expect(await usdc.balanceOf(stableVault.address)).to.eq(0);
+      expect(await usdc.balanceOf(charlie.address)).to.eq(charlieUsdcBalance.add(availableUsdc));
     });
   });
 });
