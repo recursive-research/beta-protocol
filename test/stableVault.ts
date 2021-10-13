@@ -200,21 +200,18 @@ describe('Rift Stable Vault Unit tests', () => {
     it('allows owner to deploy liquidity without swapping', async () => {
       await stableVault.addLiquidity(0, 0, 0, 0, true);
 
-      expect(await usdc.balanceOf(stableVault.address)).to.be.lt(usdcTotalDeposits);
-      expect(await usdt.balanceOf(stableVault.address)).to.be.lt(usdtDepositAmount);
+      expect(await usdc.balanceOf(stableVault.address)).to.lt(usdcDepositAmount);
+      expect(await usdt.balanceOf(stableVault.address)).to.eq(0);
 
       expect(await uniPool.balanceOf(stableVault.address)).to.be.gt(0);
     });
 
     it('allows owner to remove liquidity without swapping', async () => {
-      const initialUsdcBalance = await usdc.balanceOf(stableVault.address);
-      const initialUsdtBalance = await usdt.balanceOf(stableVault.address);
-
       await stableVault.removeLiquidity(0, 0, 0, 0, true);
 
       expect(await uniPool.balanceOf(stableVault.address)).to.eq(0);
-      expect(await usdc.balanceOf(stableVault.address)).to.be.gt(initialUsdcBalance);
-      expect(await usdt.balanceOf(stableVault.address)).to.be.gt(initialUsdtBalance);
+      expect(await usdc.balanceOf(stableVault.address)).to.be.closeTo(usdcDepositAmount, 1);
+      expect(await usdt.balanceOf(stableVault.address)).to.closeTo(usdtDepositAmount, 1);
     });
 
     it('allows users to withdraw', async () => {
