@@ -211,7 +211,7 @@ describe('Rift Stable Vault Unit tests', () => {
 
       expect(await uniPool.balanceOf(stableVault.address)).to.eq(0);
       expect(await usdc.balanceOf(stableVault.address)).to.be.closeTo(usdcDepositAmount, 1);
-      expect(await usdt.balanceOf(stableVault.address)).to.closeTo(usdtDepositAmount, 1);
+      expect(await usdt.balanceOf(stableVault.address)).to.be.closeTo(usdtDepositAmount, 1);
     });
 
     it('allows users to withdraw', async () => {
