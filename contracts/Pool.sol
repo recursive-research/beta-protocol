@@ -35,7 +35,7 @@ contract Pool is ERC20 {
     IVault public immutable vault;
 
     /// @notice tracks the intitial WETH deposit amount, so the Pool can calculate how much must be returned
-    uint256 public initialWethDeposit;
+    uint256 public wethPrincipalAmount;
     /// @notice the SLP tokens received after the pool adds liquidity
     uint256 public lpTokenBalance;
 
@@ -140,20 +140,18 @@ contract Pool is ERC20 {
     /// Pool must provide a return on by the end of Phase One.
     /// @param _amountToken the desired amount of token to add as liquidity to the sushi pool
     /// @param _minAmountWeth the minimum amount of WETH to deposit
-    /// @param _minAmounttoken the minimum amount of token to deposit
+    /// @param _minAmountToken the minimum amount of token to deposit
     function pairLiquidity(
         uint256 _amountWeth,
         uint256 _amountToken,
         uint256 _minAmountWeth,
         uint256 _minAmountToken
     ) external onlyVault {
-        initialWethDeposit += _amountWeth;
-
         IWETH(WETH).approve(sushiRouter, _amountWeth);
         IERC20(token).safeApprove(sushiRouter, 0);
         IERC20(token).safeApprove(sushiRouter, _amountToken);
 
-        (, , uint256 lpTokensReceived) = IUniswapV2Router02(sushiRouter).addLiquidity(
+        (uint256 wethDeposited, , uint256 lpTokensReceived) = IUniswapV2Router02(sushiRouter).addLiquidity(
             WETH,
             token,
             _amountWeth,
@@ -163,9 +161,16 @@ contract Pool is ERC20 {
             address(this),
             block.timestamp
         );
-        stake(lpTokensReceived);
 
+        wethPrincipalAmount += wethDeposited;
         lpTokenBalance += lpTokensReceived;
+
+        if (wethDeposited < _amountWeth) {
+            uint256 wethSurplus = _amountWeth - wethDeposited;
+            IWETH(WETH).transfer(address(vault), wethSurplus);
+        }
+
+        stake(lpTokensReceived);
     }
 
     /// @notice function to unstake SLP tokens, remove liquidity from the token <> WETH SushiSwap pool, and
@@ -196,8 +201,8 @@ contract Pool is ERC20 {
         // plus interest accrued during the period based on the vault's fixed rate, the initial deposit
         // amount, and the duration of deposit
         uint256 depositTimestamp = IVault(vault).depositTimestamp();
-        uint256 wethOwed = initialWethDeposit +
-            (((initialWethDeposit * vault.fixedRate()) / 100) * (block.timestamp - depositTimestamp)) /
+        uint256 wethOwed = wethPrincipalAmount +
+            (((wethPrincipalAmount * vault.fixedRate()) / 100) * (block.timestamp - depositTimestamp)) /
             (365 days);
         uint256 wethBalance = IWETH(WETH).balanceOf(address(this));
 

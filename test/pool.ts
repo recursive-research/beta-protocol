@@ -181,7 +181,7 @@ describe('Rift Pool Unit tests', () => {
       });
 
       it('should not make swap when pool can return fixed rate exactly', async () => {
-        const fixedReturn = ethers.BigNumber.from(3170979199).add(3170979198);
+        const fixedReturn = ethers.BigNumber.from(779579815);
         await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1);
         await vault.setDepositTimestamp();
         await getTokens(pool, weth, fixedReturn);
