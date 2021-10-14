@@ -2,7 +2,7 @@ import { BigNumber } from 'ethers';
 
 export const Tokens = {
   alcx: '0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF',
-  aave: '0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9',
+  aave: '0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9',
   sushi: '0x6B3595068778DD592e39A122f4f5a5cF09C90fE2',
   usdc: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
   usdt: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
