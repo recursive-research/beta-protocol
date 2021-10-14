@@ -14,6 +14,7 @@ import {
   IWETH,
   StableVault,
   StableVaultV2Mock,
+  Pool__factory,
 } from '../typechain';
 import { deployContract } from 'ethereum-waffle';
 import { Contracts, getMasterChefPid, getSushiRewarder, getWhale, Tokens } from './constants';
@@ -29,14 +30,15 @@ export async function deployVaultV2(admin: SignerWithAddress): Promise<VaultV2Mo
   return (await deployContract(admin, vaultArtifact)) as VaultV2Mock;
 }
 
-export async function deployPool(admin: SignerWithAddress, vault: Vault, token: ERC20): Promise<Pool> {
-  const poolArtifact: Artifact = await hre.artifacts.readArtifact('Pool');
-  return (await deployContract(admin, poolArtifact, [
-    vault.address,
-    token.address,
-    getSushiRewarder(token.address),
-    getMasterChefPid(token.address),
-  ])) as Pool;
+export async function deployPool(
+  admin: SignerWithAddress,
+  vault: Vault,
+  token: ERC20,
+  override: boolean = false,
+): Promise<Pool> {
+  await vault.deployPool(token.address, getSushiRewarder(token.address), getMasterChefPid(token.address), override);
+  const pool = await vault.tokenToPool(token.address);
+  return Pool__factory.connect(pool, admin);
 }
 
 export async function deployPoolV2(admin: SignerWithAddress, address: string): Promise<PoolV2Mock> {

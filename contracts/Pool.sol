@@ -146,7 +146,7 @@ contract Pool is ERC20 {
         uint256 _amountToken,
         uint256 _minAmountWeth,
         uint256 _minAmountToken
-    ) external onlyVault {
+    ) external onlyVault returns (uint256) {
         IWETH(WETH).approve(sushiRouter, _amountWeth);
         IERC20(token).safeApprove(sushiRouter, 0);
         IERC20(token).safeApprove(sushiRouter, _amountToken);
@@ -171,6 +171,7 @@ contract Pool is ERC20 {
         }
 
         stake(lpTokensReceived);
+        return wethDeposited;
     }
 
     /// @notice function to unstake SLP tokens, remove liquidity from the token <> WETH SushiSwap pool, and
