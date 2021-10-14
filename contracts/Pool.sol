@@ -201,7 +201,7 @@ contract Pool is ERC20 {
         // calculate the amount of WETH owed back to Vault. This is calculated as the initial deposit
         // plus interest accrued during the period based on the vault's fixed rate, the initial deposit
         // amount, and the duration of deposit
-        uint256 depositTimestamp = IVault(vault).depositTimestamp();
+        uint256 depositTimestamp = vault.depositTimestamp();
         uint256 wethOwed = wethPrincipalAmount +
             (((wethPrincipalAmount * vault.fixedRate()) / 100) * (block.timestamp - depositTimestamp)) /
             (365 days);
