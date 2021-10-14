@@ -30,8 +30,13 @@ export async function deployVaultV2(admin: SignerWithAddress): Promise<VaultV2Mo
   return (await deployContract(admin, vaultArtifact)) as VaultV2Mock;
 }
 
-export async function deployPool(admin: SignerWithAddress, vault: Vault, token: ERC20): Promise<Pool> {
-  await vault.deployPool(token.address, getSushiRewarder(token.address), getMasterChefPid(token.address));
+export async function deployPool(
+  admin: SignerWithAddress,
+  vault: Vault,
+  token: ERC20,
+  override: boolean = false,
+): Promise<Pool> {
+  await vault.deployPool(token.address, getSushiRewarder(token.address), getMasterChefPid(token.address), override);
   const pool = await vault.tokenToPool(token.address);
   return Pool__factory.connect(pool, admin);
 }

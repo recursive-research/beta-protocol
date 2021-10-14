@@ -74,12 +74,15 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     /// @param _token deploy a pool for this token
     /// @param _sushiRewarder how SLP tokens receive staking rewards. See pool contract
     /// @param _pid the sushiswap pool ID in the relevant sushi rewarder. See pool contract
+    /// @param _override allows owner to deploy new pool if sushi rewarder or pid should
+    /// be updated
     function deployPool(
         address _token,
         uint256 _sushiRewarder,
-        uint256 _pid
+        uint256 _pid,
+        bool _override
     ) external onlyOwner {
-        require(tokenToPool[_token] == address(0), 'Tokens pool already deployed');
+        require(tokenToPool[_token] == address(0) || _override, 'Tokens pool already deployed');
         address newPool = address(new Pool(address(this), _token, _sushiRewarder, _pid));
         tokenToPool[_token] = newPool;
     }

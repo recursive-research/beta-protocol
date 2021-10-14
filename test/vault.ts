@@ -71,7 +71,7 @@ describe('Rift Vault Unit tests', () => {
     });
 
     it('should reject pool deployment from non owner', async () => {
-      await expect(vault.connect(alice).deployPool(token.address, 0, 0)).to.be.revertedWith(
+      await expect(vault.connect(alice).deployPool(token.address, 0, 0, false)).to.be.revertedWith(
         'Ownable: caller is not the owner',
       );
     });
@@ -106,6 +106,11 @@ describe('Rift Vault Unit tests', () => {
     it('should allow owner to move to phase 1', async () => {
       await vault.nextPhase();
       expect(await vault.phase()).to.eq(1);
+    });
+
+    it('should allow owner to override with new pool', async () => {
+      pool = await deployPool(admin, vault, token, true);
+      expect(await vault.tokenToPool(token.address)).to.eq(pool.address);
     });
 
     it('should mint user tokens on ETH deposit', async () => {
