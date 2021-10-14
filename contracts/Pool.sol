@@ -12,8 +12,6 @@ import './interfaces/IVault.sol';
 import './interfaces/IWETH.sol';
 import './libraries/SushiSwapLibrary.sol';
 
-import 'hardhat/console.sol';
-
 /// @title Rift V1 Pool
 /// @notice allows users to deposit an ERC token that will be paired with ETH and deployed to a Sushiswap pool.
 contract Pool is ERC20 {
@@ -207,9 +205,6 @@ contract Pool is ERC20 {
             (((wethPrincipalAmount * vault.fixedRate()) / 100) * (block.timestamp - depositTimestamp)) /
             (365 days);
         uint256 wethBalance = IWETH(WETH).balanceOf(address(this));
-
-        console.log(wethBalance);
-        console.log(wethOwed);
 
         // if the WETH balance in the contract is enough to pay back the fixed rate, the pool transfers
         // that amount to the Vault, and converts any remaining WETH into token
