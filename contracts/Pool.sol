@@ -34,8 +34,6 @@ contract Pool is ERC20 {
     /// @notice the Rift V1 Vault
     IVault public immutable vault;
 
-    /// @notice tracks when WETH was initially deployed by the Vault into this pool
-    uint256 public depositTimestamp;
     /// @notice tracks the intitial WETH deposit amount, so the Pool can calculate how much must be returned
     uint256 public initialWethDeposit;
     /// @notice the SLP tokens received after the pool adds liquidity
@@ -137,34 +135,36 @@ contract Pool is ERC20 {
     /// which in turn is only callable by the Vault Owner. The Vault sends some amount of ETH to the Pool, then
     /// calls this function. The Vault owner can set min amounts, but sufficient actions should be taken
     /// to prevent frontrunning.
-    /// @param _amount the amount of WETH that was sent by the Vault to this Pool. And the amount that the
+    /// @param _amountWeth the amount of WETH that was sent by the Vault to this Pool. And the amount that the
     /// Pool must provide a return on by the end of Phase One.
+    /// @param _amountToken the desired amount of token to add as liquidity to the sushi pool
+    /// @param _minAmountWeth the minimum amount of WETH to deposit
+    /// @param _minAmounttoken the minimum amount of token to deposit
     function pairLiquidity(
-        uint256 _amount,
-        uint256 _minAmountToken,
-        uint256 _minAmountWETH
+        uint256 _amountWeth,
+        uint256 _amountToken,
+        uint256 _minAmountWeth,
+        uint256 _minAmountToken
     ) external onlyVault {
-        initialWethDeposit = _amount;
-        depositTimestamp = block.timestamp;
+        initialWethDeposit += _amountWeth;
 
-        uint256 tokenBalance = IERC20(token).balanceOf(address(this));
-        uint256 wETHBalance = IWETH(WETH).balanceOf(address(this));
+        IWETH(WETH).approve(sushiRouter, _amountWeth);
+        IERC20(token).safeApprove(sushiRouter, 0);
+        IERC20(token).safeApprove(sushiRouter, _amountToken);
 
-        IERC20(token).safeApprove(sushiRouter, tokenBalance);
-        IWETH(WETH).approve(sushiRouter, wETHBalance);
-
-        (, , lpTokenBalance) = IUniswapV2Router02(sushiRouter).addLiquidity(
-            token,
+        (, , uint256 lpTokensReceived) = IUniswapV2Router02(sushiRouter).addLiquidity(
             WETH,
-            tokenBalance,
-            wETHBalance,
+            token,
+            _amountWeth,
+            _amountToken,
+            _minAmountWeth,
             _minAmountToken,
-            _minAmountWETH,
             address(this),
             block.timestamp
         );
+        stake(lpTokensReceived);
 
-        stake(lpTokenBalance);
+        lpTokenBalance += lpTokensReceived;
     }
 
     /// @notice function to unstake SLP tokens, remove liquidity from the token <> WETH SushiSwap pool, and
@@ -175,16 +175,18 @@ contract Pool is ERC20 {
     /// Can only be called by the Vault. The only Vault function that calls this is `unpairLiquidityPool`
     /// which in turn is only callable by the Vault Owner. The Vault owner can set min amounts, but
     /// sufficient actions should be taken to prevent frontrunning.
-    function unpairLiquidity(uint256 _minAmountToken, uint256 _minAmountWETH) external onlyVault {
+    /// @param _minAmountWeth the minimum amount of WETH to receive
+    /// @param _minAmountToken the minimum amount of token to receive
+    function unpairLiquidity(uint256 _minAmountWeth, uint256 _minAmountToken) external onlyVault {
         unstake(lpTokenBalance);
 
         IERC20(pair).approve(sushiRouter, lpTokenBalance);
         IUniswapV2Router02(sushiRouter).removeLiquidity(
-            token,
             WETH,
+            token,
             lpTokenBalance,
+            _minAmountWeth,
             _minAmountToken,
-            _minAmountWETH,
             address(this),
             block.timestamp
         );
@@ -192,6 +194,7 @@ contract Pool is ERC20 {
         // calculate the amount of WETH owed back to Vault. This is calculated as the initial deposit
         // plus interest accrued during the period based on the vault's fixed rate, the initial deposit
         // amount, and the duration of deposit
+        uint256 depositTimestamp = IVault(vault).depositTimestamp();
         uint256 wethOwed = initialWethDeposit +
             (((initialWethDeposit * vault.fixedRate()) / 100) * (block.timestamp - depositTimestamp)) /
             (365 days);
@@ -222,6 +225,7 @@ contract Pool is ERC20 {
             (uint256 reserveToken, uint256 reserveWETH) = SushiSwapLibrary.getReserves(sushiFactory, token, WETH);
             uint256 tokenQuote = SushiSwapLibrary.getAmountIn(wethDeficit, reserveToken, reserveWETH);
 
+            IERC20(token).safeApprove(sushiRouter, 0);
             IERC20(token).safeApprove(sushiRouter, tokenBalance);
             // if the pools token balance is enough to pay back the full fixed rate, the pool swaps the
             // required amount of token into WETH, and transfers owed WETH to the vault, and
@@ -253,32 +257,32 @@ contract Pool is ERC20 {
     /// @notice helper function to stake SLP tokens based on the sushiRewarder type. A virtual
     /// function so that any tokens with unique staking mechanics can simply inherit this contract
     /// and define their own stake function.
-    /// @param _lpTokenBalance the amount of LP tokens to stake, received after depositing
+    /// @param _lpTokenAmount the amount of LP tokens to stake, received after depositing
     /// liquidity into the Sushi Pool
-    function stake(uint256 _lpTokenBalance) internal virtual {
+    function stake(uint256 _lpTokenAmount) internal virtual {
         if (sushiRewarder == SushiRewarder.None) {
             return;
         } else if (sushiRewarder == SushiRewarder.MasterChef) {
-            IERC20(pair).approve(masterChef, _lpTokenBalance);
-            IMasterChef(masterChef).deposit(pid, _lpTokenBalance);
+            IERC20(pair).approve(masterChef, _lpTokenAmount);
+            IMasterChef(masterChef).deposit(pid, _lpTokenAmount);
         } else {
-            IERC20(pair).approve(masterChefV2, _lpTokenBalance);
-            IMasterChefV2(masterChefV2).deposit(pid, _lpTokenBalance, address(this));
+            IERC20(pair).approve(masterChefV2, _lpTokenAmount);
+            IMasterChefV2(masterChefV2).deposit(pid, _lpTokenAmount, address(this));
         }
     }
 
     /// @notice helper function to unstake SLP tokens based on the sushiRewarder type. A virtual
     /// function so that any tokens with unique staking mechanics can simply inherit this contract
     /// and define their own unstake function
-    /// @param _lpTokenBalance the amount of LP tokens to stake, received after depositing
+    /// @param _lpTokenAmount the amount of LP tokens to stake, received after depositing
     /// liquidity into the Sushi Pool
-    function unstake(uint256 _lpTokenBalance) internal virtual {
+    function unstake(uint256 _lpTokenAmount) internal virtual {
         if (sushiRewarder == SushiRewarder.None) {
             return;
         } else if (sushiRewarder == SushiRewarder.MasterChef) {
-            IMasterChef(masterChef).withdraw(pid, _lpTokenBalance);
+            IMasterChef(masterChef).withdraw(pid, _lpTokenAmount);
         } else {
-            IMasterChefV2(masterChefV2).withdrawAndHarvest(pid, _lpTokenBalance, address(this));
+            IMasterChefV2(masterChefV2).withdrawAndHarvest(pid, _lpTokenAmount, address(this));
         }
 
         uint256 sushiBalance = IERC20(sushi).balanceOf(address(this));
