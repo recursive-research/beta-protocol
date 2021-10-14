@@ -2,6 +2,7 @@
 pragma solidity 0.8.6;
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import './Pool.sol';
 import './interfaces/IPool.sol';
 import './interfaces/IVaultV2.sol';
 import './interfaces/IWETH.sol';
@@ -19,6 +20,8 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     /// @notice initial timestamp on which fixed rate begins. set by the owner after all liquidity has been
     /// paired with pools
     uint256 public depositTimestamp;
+
+    mapping(address => address) public tokenToPool;
 
     /// @notice the Vault has 3 Phases, and actions are restricted based on which Phase it's in.
     enum Phases {
@@ -67,6 +70,20 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     /// @notice emitted after the vault unpairs its liquidity from a pool
     /// @param pool the pool from which liquidity was return
     event LiquidityReturned(address indexed pool);
+
+    /// @notice allows the vault owner to deploy a new pool
+    /// @param _token deploy a pool for this token
+    /// @param _sushiRewarder how SLP tokens receive staking rewards. See pool contract
+    /// @param _pid the sushiswap pool ID in the relevant sushi rewarder. See pool contract
+    function deployPool(
+        address _token,
+        uint256 _sushiRewarder,
+        uint256 _pid
+    ) external onlyOwner {
+        require(tokenToPool[_token] == address(0), 'Tokens pool already deployed');
+        address newPool = address(new Pool(address(this), _token, _sushiRewarder, _pid));
+        tokenToPool[_token] = newPool;
+    }
 
     /// @notice allows users to deposit ETH during Phase zero and receive a staking token 1:1
     function depositEth() external payable duringPhase(Phases.Zero) {
@@ -117,35 +134,39 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     /// @notice called by the contract owner during Phase One, sending WETH to a Pool and
     /// instructing the Pool to deploy the liquidity. Expected to be called on various pools.
     /// Min amounts should be set by the Owner to prevent frontrunning.
-    /// @param _pool address of the pool to which liquidity is being deployed
+    /// @param _token address of the token to whose pool liquidity is being deployed
     /// @param _amountWeth amount of WETH to deploy to _pool
     /// @param _amountToken the desired amount of token to add as liquidity in the Pool
     /// @param _minAmountWeth the minimum amount of WETH to deposit
     /// @param _minAmountToken the minimum amount of token to deposit
     function pairLiquidityPool(
-        address _pool,
+        address _token,
         uint256 _amountWeth,
         uint256 _amountToken,
         uint256 _minAmountWeth,
         uint256 _minAmountToken
     ) external onlyOwner {
-        IWETH(WETH).transfer(_pool, _amountWeth);
-        IPool(_pool).pairLiquidity(_amountWeth, _amountToken, _minAmountWeth, _minAmountToken);
-        emit LiquidityDeployed(_pool, _amountWeth);
+        address pool = tokenToPool[_token];
+        require(pool != address(0), 'No pool deployed for this token');
+        IWETH(WETH).transfer(pool, _amountWeth);
+        uint256 wethDeployed = IPool(pool).pairLiquidity(_amountWeth, _amountToken, _minAmountWeth, _minAmountToken);
+        emit LiquidityDeployed(pool, wethDeployed);
     }
 
     /// @notice called by the contract owner at the end of Phase One, unwinding the deployed liquidity
     /// and receiving WETH. Min amounts should be set by the Owner to prevent frontrunning.
-    /// @param _pool address of the pool to unwind liquidity from
+    /// @param _token the token whose pool to remove liquidity from
     /// @param _minAmountWeth the minimum amount of WETH to deposit
     /// @param _minAmountToken the minimum amount of token to deposit
     function unpairLiquidityPool(
-        address _pool,
+        address _token,
         uint256 _minAmountWeth,
         uint256 _minAmountToken
     ) external onlyOwner {
-        IPool(_pool).unpairLiquidity(_minAmountWeth, _minAmountToken);
-        emit LiquidityReturned(_pool);
+        address pool = tokenToPool[_token];
+        require(pool != address(0), 'No pool deployed for this token');
+        IPool(pool).unpairLiquidity(_minAmountWeth, _minAmountToken);
+        emit LiquidityReturned(pool);
     }
 
     /// @notice allows the Vault owner to move the Vault into its next phase

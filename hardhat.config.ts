@@ -3,6 +3,7 @@ import '@typechain/hardhat';
 import 'hardhat-gas-reporter';
 import 'solidity-coverage';
 import 'hardhat-abi-exporter';
+import 'hardhat-contract-sizer';
 
 import { resolve } from 'path';
 

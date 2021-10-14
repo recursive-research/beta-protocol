@@ -163,7 +163,7 @@ describe('Rift Pool Unit tests', () => {
       });
 
       it('should pair hold LP tokens for token-eth', async () => {
-        await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1);
+        await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
         const pair = IERC20__factory.connect(await pool.pair(), ethers.provider);
         const lpTokensReceived = await pool.lpTokenBalance();
 
@@ -172,9 +172,9 @@ describe('Rift Pool Unit tests', () => {
 
       it('should withdraw token-weth and return weth to vault', async () => {
         const pair = IERC20__factory.connect(await pool.pair(), ethers.provider);
-        await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1);
+        await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
         await vault.setDepositTimestamp();
-        await vault.unpairLiquidityPool(pool.address, 1, 1);
+        await vault.unpairLiquidityPool(token.address, 1, 1);
 
         expect(await pair.balanceOf(pool.address)).to.eq(0);
         expect(await weth.balanceOf(pool.address)).to.eq(0);
@@ -182,17 +182,17 @@ describe('Rift Pool Unit tests', () => {
 
       it('should not make swap when pool can return fixed rate exactly', async () => {
         const fixedReturn = ethers.BigNumber.from(779579815);
-        await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1);
+        await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
         await vault.setDepositTimestamp();
         await getTokens(pool, weth, fixedReturn);
-        await vault.unpairLiquidityPool(pool.address, 1, 1);
+        await vault.unpairLiquidityPool(token.address, 1, 1);
       });
 
       it('should swap token for weth when fixed rate is greater than returns', async () => {
         const sushiRouter = IUniswapV2Router02__factory.connect(Contracts.sushiRouter, bob);
         const tokenTradeAmount = (await token.balanceOf(getWhale(token.address))).div(2); // save some for the other tests
 
-        await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1);
+        await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
         await vault.setDepositTimestamp();
         await getTokens(bob, token, tokenTradeAmount);
         await token.connect(bob).approve(sushiRouter.address, tokenTradeAmount);
@@ -201,7 +201,7 @@ describe('Rift Pool Unit tests', () => {
           .connect(bob)
           .swapExactTokensForTokens(tokenTradeAmount, 0, [token.address, weth.address], bob.address, 2000000000);
 
-        await vault.unpairLiquidityPool(pool.address, 1, 1);
+        await vault.unpairLiquidityPool(token.address, 1, 1);
         expect(await weth.balanceOf(pool.address)).to.eq(0);
         expect(await token.balanceOf(pool.address)).to.eq(0);
       });
@@ -224,7 +224,7 @@ describe('Rift Pool Unit tests', () => {
       });
 
       it('should pair and update master chef balances for token-eth', async () => {
-        await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1);
+        await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
 
         const lpTokensReceived = await pool.lpTokenBalance();
         const tokenInfo = await masterChef.userInfo(getMasterChefPid(token.address), pool.address);
@@ -233,9 +233,9 @@ describe('Rift Pool Unit tests', () => {
       });
 
       it('should withdraw token-weth from master chef and return weth to vault', async () => {
-        await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1);
+        await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
         await vault.setDepositTimestamp();
-        await vault.unpairLiquidityPool(pool.address, 1, 1);
+        await vault.unpairLiquidityPool(token.address, 1, 1);
 
         const tokenInfo = await masterChef.userInfo(getMasterChefPid(token.address), pool.address);
         expect(tokenInfo.amount).to.eq(0);
@@ -260,7 +260,7 @@ describe('Rift Pool Unit tests', () => {
       });
 
       it('should pair and update master chef v2 balances for token-eth', async () => {
-        await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1);
+        await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
 
         const lpTokensReceived = await pool.lpTokenBalance();
         const tokenInfo = await masterChefV2.userInfo(getMasterChefPid(token.address), pool.address);
@@ -269,9 +269,9 @@ describe('Rift Pool Unit tests', () => {
       });
 
       it('should withdraw token-weth from master chef v2 and return weth to vault', async () => {
-        await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1);
+        await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
         await vault.setDepositTimestamp();
-        await vault.unpairLiquidityPool(pool.address, 1, 1);
+        await vault.unpairLiquidityPool(token.address, 1, 1);
 
         const tokenInfo = await masterChef.userInfo(getMasterChefPid(token.address), pool.address);
         expect(tokenInfo.amount).to.eq(0);
@@ -295,9 +295,9 @@ describe('Rift Pool Unit tests', () => {
       await vault.nextPhase();
       await vault.wrapEth();
 
-      await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1);
+      await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
       await vault.setDepositTimestamp();
-      await vault.unpairLiquidityPool(pool.address, 1, 1);
+      await vault.unpairLiquidityPool(token.address, 1, 1);
 
       await vault.nextPhase();
       await vault.unwrapEth();
