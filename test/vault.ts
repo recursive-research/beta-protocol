@@ -232,6 +232,13 @@ describe('Rift Vault Unit tests', () => {
           .withArgs(pool.address, ethDepositAmount);
       });
 
+      it('should allow 2 calls of pairLiquidity', async () => {
+        await vault.pairLiquidityPool(pool.address, ethDepositAmount.div(2), tokenDepositAmount.div(2), 1, 1);
+        expect(await weth.balanceOf(vault.address)).to.eq(ethDepositAmount.div(2));
+        await vault.pairLiquidityPool(pool.address, ethDepositAmount.div(2), tokenDepositAmount.div(2), 1, 1);
+        expect(await weth.balanceOf(vault.address)).to.eq(0);
+      });
+
       it('should allow owner to set deposit timestamp', async () => {
         await vault.setDepositTimestamp();
         expect(await vault.depositTimestamp()).be.gt(0);
@@ -265,6 +272,15 @@ describe('Rift Vault Unit tests', () => {
         await expect(vault.unpairLiquidityPool(pool.address, lpTokenBalance, 1, 1))
           .to.emit(vault, 'LiquidityReturned')
           .withArgs(pool.address);
+      });
+
+      it('should allow 2 calls of unpairLiquidity', async () => {
+        const lpTokenBalance = await pool.lpTokenBalance();
+        await vault.unpairLiquidityPool(pool.address, lpTokenBalance.div(2), 1, 1);
+        const newLpTokenBalance = await pool.lpTokenBalance();
+        expect(newLpTokenBalance).to.be.closeTo(lpTokenBalance.div(2), 1); // off by 1 after division
+        await vault.unpairLiquidityPool(pool.address, newLpTokenBalance, 1, 1);
+        expect(await pool.lpTokenBalance()).to.eq(0);
       });
     });
 

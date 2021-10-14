@@ -195,6 +195,7 @@ contract Pool is ERC20 {
             address(this),
             block.timestamp
         );
+        lpTokenBalance -= _lpTokenAmount;
 
         // calculate the amount of WETH owed back to Vault. This is calculated as the initial deposit
         // plus interest accrued during the period based on the vault's fixed rate, the initial deposit
