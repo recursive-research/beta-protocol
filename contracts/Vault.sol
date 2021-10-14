@@ -2,10 +2,9 @@
 pragma solidity 0.8.6;
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
-import './Pool.sol';
-import './interfaces/IPool.sol';
 import './interfaces/IVaultV2.sol';
 import './interfaces/IWETH.sol';
+import './Pool.sol';
 
 /// @title Rift V1 Eth Vault
 /// @notice allows users to deposit eth, which will deployed to various pools to earn a return during a period.
@@ -149,7 +148,7 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
         address pool = tokenToPool[_token];
         require(pool != address(0), 'No pool deployed for this token');
         IWETH(WETH).transfer(pool, _amountWeth);
-        uint256 wethDeployed = IPool(pool).pairLiquidity(_amountWeth, _amountToken, _minAmountWeth, _minAmountToken);
+        uint256 wethDeployed = Pool(pool).pairLiquidity(_amountWeth, _amountToken, _minAmountWeth, _minAmountToken);
         emit LiquidityDeployed(pool, wethDeployed);
     }
 
@@ -165,7 +164,7 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     ) external onlyOwner {
         address pool = tokenToPool[_token];
         require(pool != address(0), 'No pool deployed for this token');
-        IPool(pool).unpairLiquidity(_minAmountWeth, _minAmountToken);
+        Pool(pool).unpairLiquidity(_minAmountWeth, _minAmountToken);
         emit LiquidityReturned(pool);
     }
 
