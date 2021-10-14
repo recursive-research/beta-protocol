@@ -117,6 +117,7 @@ contract Pool is ERC20 {
             IERC20(token).safeTransfer(msg.sender, returnAmount);
             emit Withdraw(msg.sender, returnAmount);
         } else {
+            IERC20(token).safeApprove(_poolV2, 0);
             IERC20(token).safeApprove(_poolV2, returnAmount);
             IPoolV2(_poolV2).migrateLiquidity(returnAmount, msg.sender);
             emit Migration(msg.sender, returnAmount);
