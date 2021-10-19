@@ -402,7 +402,7 @@ describe('Rift Vault Unit tests', () => {
       await vault.setFeeAmount(newFeeAmount);
 
       const aliceEthShare = await vault.ethShare(alice.address);
-      const protocolFee = aliceEthShare.mul(newFeeAmount).div(1000);
+      const protocolFee = aliceEthShare.sub(ethDepositAmount).mul(newFeeAmount).div(1000);
 
       await vault.connect(alice).withdrawEth(Addresses.zero);
 
