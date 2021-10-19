@@ -120,6 +120,16 @@ describe('Rift Vault Unit tests', () => {
       expect(await vault.maxEth()).to.eq(newMaxEth);
     });
 
+    it('should reject pairLiquidityPool call', async () => {
+      await expect(
+        vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 0, 0),
+      ).to.be.revertedWith('Invalid Phase function');
+    });
+
+    it('should reject unpairLiquidityPool call', async () => {
+      await expect(vault.unpairLiquidityPool(token.address, 0, 0)).to.be.revertedWith('Invalid Phase function');
+    });
+
     it('should allow owner to move to phase 1', async () => {
       await vault.nextPhase();
       expect(await vault.phase()).to.eq(1);
@@ -340,6 +350,16 @@ describe('Rift Vault Unit tests', () => {
       await vault.unwrapEth();
 
       await vault.nextPhase();
+    });
+
+    it('should reject pairLiquidityPool call', async () => {
+      await expect(
+        vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 0, 0),
+      ).to.be.revertedWith('Invalid Phase function');
+    });
+
+    it('should reject unpairLiquidityPool call', async () => {
+      await expect(vault.unpairLiquidityPool(token.address, 0, 0)).to.be.revertedWith('Invalid Phase function');
     });
 
     it('should reject users depositing ETH', async () => {

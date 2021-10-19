@@ -10,7 +10,7 @@ These contracts work together over a period of 3 phases, and users can only exec
 
 Upon deployment, the `Vault` is in Phase Zero. Note that the `Pool`'s functionality is also restricted based on the current phase of the `Vault`.
 
-The Vault deployer sets the `fixedRate` and a `maxEth` state variables on deployment. The `fixedRate` is a number between 1 and 100, and is the APY that Vault depositors will receive at the end of the term. `maxEth` is the total amount of `ETH` deposits that the Vault will accept. It can be modified by the contract owner.
+The Vault deployer sets `maxEth`, `feeTo`, and `feeAmount` state variables on deployment. `maxEth` is the total amount of `ETH` deposits that the Vault will accept. `feeAmount` is the protocol fee (out of 1000) that will be accrued on profits. It can be modified by the contract owner.
 
 After deployment, the vault owner will be able to deploy new pools by calling `deployPool`. This creates a new `Pool` instance for a `token`. Each pool is deployed with a few important arguments:
 
