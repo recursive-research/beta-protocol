@@ -290,6 +290,39 @@ describe('Rift Pool Unit tests', () => {
         expect(await weth.balanceOf(pool.address)).to.eq(0);
       });
     });
+
+    describe('Edge cases', async () => {
+      it('should make no swap if token amount returned is exactly the token amount deposited', async () => {
+        const fixedRateZero = BigNumber.from(0);
+        const tokenDepositMinimal = BigNumber.from(100);
+        token = await getERC20(Tokens.aave);
+        vault = await deployVault(admin, maxEth, feeTo, feeAmount);
+        pool = await deployPool(admin, vault, token, fixedRateZero);
+
+        await getTokens(alice, token, tokenDepositMinimal);
+        await token.connect(alice).approve(pool.address, tokenDepositMinimal);
+        await pool.connect(alice).depositToken(tokenDepositMinimal);
+
+        await vault.connect(alice).depositEth({ value: ethDepositAmount });
+
+        await vault.nextPhase();
+        await vault.wrapEth();
+
+        await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositMinimal, 0, 0);
+
+        const sushiRouter = IUniswapV2Router02__factory.connect(Contracts.sushiRouter, bob);
+        const tokenTradeAmount = ethers.utils.parseEther('8000');
+        await getTokens(bob, token, tokenTradeAmount);
+        await token.connect(bob).approve(sushiRouter.address, tokenTradeAmount);
+        await sushiRouter
+          .connect(bob)
+          .swapExactTokensForTokens(tokenTradeAmount, 0, [token.address, weth.address], bob.address, 2000000000);
+
+        await vault.unpairLiquidityPool(token.address, 0, 0);
+        expect(await weth.balanceOf(vault.address)).to.eq(0);
+        expect(await token.balanceOf(pool.address)).to.eq(tokenDepositAmount);
+      });
+    });
   });
 
   describe('Phase Two', async () => {
