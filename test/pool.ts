@@ -28,6 +28,7 @@ import { Addresses, Contracts, getMasterChefPid, Tokens } from './constants';
 
 describe('Rift Pool Unit tests', () => {
   const fixedRate = BigNumber.from('10');
+  const invalidFixedRate = BigNumber.from('2000');
   const maxEth = ethers.utils.parseEther('10');
 
   const ethDepositAmount = ethers.utils.parseEther('1');
@@ -84,6 +85,10 @@ describe('Rift Pool Unit tests', () => {
       expect(await pool.vault()).to.eq(vault.address);
       expect(await pool.token()).to.eq(token.address);
       expect(await pool.fixedRate()).to.eq(fixedRate);
+    });
+
+    it('should reject deployment with invalid fixed rate', async () => {
+      await expect(deployPool(admin, vault, token, invalidFixedRate, true)).to.be.revertedWith('Invalid fixed rate');
     });
   });
 

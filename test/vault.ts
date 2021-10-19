@@ -24,6 +24,7 @@ describe('Rift Vault Unit tests', () => {
   const newFeeTo = Addresses.multisig;
   const feeAmount = BigNumber.from(0);
   const newFeeAmount = BigNumber.from(10); // out of 1000
+  const invalidFeeAmount = BigNumber.from('200');
 
   let admin: SignerWithAddress;
   let alice: SignerWithAddress;
@@ -93,6 +94,10 @@ describe('Rift Vault Unit tests', () => {
     it('should allow owner to set feeAmount', async () => {
       await vault.setFeeAmount(newFeeAmount);
       expect(await vault.feeAmount()).to.eq(newFeeAmount);
+    });
+
+    it('should reject deployment with invalid feeAmount', async () => {
+      await expect(deployVault(admin, maxEth, feeTo, invalidFeeAmount)).to.be.revertedWith('Invalid feeAmount');
     });
   });
 
@@ -368,6 +373,10 @@ describe('Rift Vault Unit tests', () => {
     it('should allow users to view their withdrawable balance', async () => {
       const vaultEthBalance = await ethers.provider.getBalance(vault.address);
       expect(await vault.ethShare(alice.address)).to.eq(vaultEthBalance);
+    });
+
+    it('should reject moving to phase 3', async () => {
+      await expect(vault.nextPhase()).to.be.revertedWith('Invalid next phase');
     });
 
     describe('Withdraw', async () => {
