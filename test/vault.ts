@@ -11,8 +11,7 @@ describe('Rift Vault Unit tests', () => {
   const tokenName = 'RIFT - Fixed Rate ETH V1';
   const tokenSymbol = 'riftETHv1';
 
-  const fixedRate = BigNumber.from('5');
-  const newFixedRate = BigNumber.from('10');
+  const fixedRate = BigNumber.from('5'); // out of 1000
 
   const maxEth = ethers.utils.parseEther('10');
   const newMaxEth = ethers.utils.parseEther('20');
@@ -44,8 +43,8 @@ describe('Rift Vault Unit tests', () => {
 
   describe('Deployment', async () => {
     beforeEach(async () => {
-      vault = await deployVault(admin, fixedRate, maxEth);
-      pool = await deployPool(admin, vault, token);
+      vault = await deployVault(admin, maxEth);
+      pool = await deployPool(admin, vault, token, fixedRate);
     });
 
     it('should correctly assign erc20 metadata', async () => {
@@ -57,8 +56,7 @@ describe('Rift Vault Unit tests', () => {
       expect(await vault.totalSupply()).to.eq(0);
     });
 
-    it('should correctly assign initial state variables', async () => {
-      expect(await vault.fixedRate()).to.eq(fixedRate);
+    it('should correctly assign initial max eth', async () => {
       expect(await vault.maxEth()).to.eq(maxEth);
     });
 
@@ -67,11 +65,11 @@ describe('Rift Vault Unit tests', () => {
     });
 
     it('should reject new pool deployment for the same token', async () => {
-      await expect(deployPool(admin, vault, token)).to.be.revertedWith('Tokens pool already deployed');
+      await expect(deployPool(admin, vault, token, fixedRate)).to.be.revertedWith('Tokens pool already deployed');
     });
 
     it('should reject pool deployment from non owner', async () => {
-      await expect(vault.connect(alice).deployPool(token.address, 0, 0, false)).to.be.revertedWith(
+      await expect(vault.connect(alice).deployPool(token.address, 0, 0, fixedRate, false)).to.be.revertedWith(
         'Ownable: caller is not the owner',
       );
     });
@@ -79,8 +77,8 @@ describe('Rift Vault Unit tests', () => {
 
   describe('Phase 0', async () => {
     beforeEach(async () => {
-      vault = await deployVault(admin, fixedRate, maxEth);
-      pool = await deployPool(admin, vault, token);
+      vault = await deployVault(admin, maxEth);
+      pool = await deployPool(admin, vault, token, fixedRate);
     });
 
     it('should reject maxEth updates from non owner', async () => {
@@ -92,24 +90,13 @@ describe('Rift Vault Unit tests', () => {
       expect(await vault.maxEth()).to.eq(newMaxEth);
     });
 
-    it('should reject fixed rate updates from non owner', async () => {
-      await expect(vault.connect(alice).updateFixedRate(newFixedRate)).to.be.revertedWith(
-        'Ownable: caller is not the owner',
-      );
-    });
-
-    it('should allow owner to update fixed rate', async () => {
-      await vault.updateFixedRate(newFixedRate);
-      expect(await vault.fixedRate()).to.eq(newFixedRate);
-    });
-
     it('should allow owner to move to phase 1', async () => {
       await vault.nextPhase();
       expect(await vault.phase()).to.eq(1);
     });
 
     it('should allow owner to override with new pool', async () => {
-      pool = await deployPool(admin, vault, token, true);
+      pool = await deployPool(admin, vault, token, fixedRate, true);
       expect(await vault.tokenToPool(token.address)).to.eq(pool.address);
     });
 
@@ -173,8 +160,8 @@ describe('Rift Vault Unit tests', () => {
 
   describe('Phase 1', async () => {
     beforeEach(async () => {
-      vault = await deployVault(admin, fixedRate, maxEth);
-      pool = await deployPool(admin, vault, token);
+      vault = await deployVault(admin, maxEth);
+      pool = await deployPool(admin, vault, token, fixedRate);
 
       await vault.connect(alice).depositEth({ value: ethDepositAmount });
       await getTokens(alice, token, tokenDepositAmount);
@@ -252,18 +239,12 @@ describe('Rift Vault Unit tests', () => {
           .to.emit(vault, 'LiquidityDeployed')
           .withArgs(pool.address, ethDepositAmount);
       });
-
-      it('should allow owner to set deposit timestamp', async () => {
-        await vault.setDepositTimestamp();
-        expect(await vault.depositTimestamp()).be.gt(0);
-      });
     });
 
     describe('withdrawing liquidity', async () => {
       beforeEach(async () => {
         await vault.wrapEth();
         await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
-        await vault.setDepositTimestamp();
       });
 
       it('should reject unpairLiquidityPool calls from non owner', async () => {
@@ -323,8 +304,8 @@ describe('Rift Vault Unit tests', () => {
 
   describe('Phase Two', async () => {
     beforeEach(async () => {
-      vault = await deployVault(admin, fixedRate, maxEth);
-      pool = await deployPool(admin, vault, token);
+      vault = await deployVault(admin, maxEth);
+      pool = await deployPool(admin, vault, token, fixedRate);
 
       await vault.connect(alice).depositEth({ value: ethDepositAmount });
       await getTokens(alice, token, tokenDepositAmount);
