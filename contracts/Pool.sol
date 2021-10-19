@@ -134,7 +134,7 @@ contract Pool is ERC20 {
 
     /// @notice helper function to view a user's proportional share of token during phase two
     /// @param _account the account of the user whose share is being requested
-    function tokenShare(address _account) external view duringPhase(IVault.Phases.Two) returns (uint256 share) {
+    function tokenShare(address _account) external view returns (uint256 share) {
         uint256 stakingTokenBalance = balanceOf(_account);
         share = (IERC20(token).balanceOf(address(this)) * stakingTokenBalance) / totalSupply();
     }

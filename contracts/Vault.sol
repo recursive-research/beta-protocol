@@ -139,7 +139,7 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     /// @notice helper function for the frontend to view a user's proportional share of ETH
     /// during Phase Two
     /// @param _account the account of the user whose share is being requested
-    function ethShare(address _account) external view duringPhase(Phases.Two) returns (uint256 share) {
+    function ethShare(address _account) external view returns (uint256 share) {
         uint256 stakingTokenBalance = balanceOf(_account);
         share = (address(this).balance * stakingTokenBalance) / totalSupply();
     }
