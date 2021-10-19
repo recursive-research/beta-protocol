@@ -320,7 +320,7 @@ describe('Rift Pool Unit tests', () => {
 
         await vault.unpairLiquidityPool(token.address, 0, 0);
         expect(await weth.balanceOf(pool.address)).to.eq(0);
-        expect(await token.balanceOf(pool.address)).to.eq(tokenDepositAmount);
+        expect(await token.balanceOf(pool.address)).to.eq(tokenDepositMinimal);
       });
     });
   });
