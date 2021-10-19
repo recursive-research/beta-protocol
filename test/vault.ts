@@ -64,10 +64,6 @@ describe('Rift Vault Unit tests', () => {
       expect(await vault.phase()).to.eq(0);
     });
 
-    it('should reject new pool deployment for the same token', async () => {
-      await expect(deployPool(admin, vault, token, fixedRate)).to.be.revertedWith('Tokens pool already deployed');
-    });
-
     it('should reject pool deployment from non owner', async () => {
       await expect(vault.connect(alice).deployPool(token.address, 0, 0, fixedRate, false)).to.be.revertedWith(
         'Ownable: caller is not the owner',
@@ -93,6 +89,10 @@ describe('Rift Vault Unit tests', () => {
     it('should allow owner to move to phase 1', async () => {
       await vault.nextPhase();
       expect(await vault.phase()).to.eq(1);
+    });
+
+    it('should reject new pool deployment for the same token', async () => {
+      await expect(deployPool(admin, vault, token, fixedRate)).to.be.revertedWith('Tokens pool already deployed');
     });
 
     it('should allow owner to override with new pool', async () => {

@@ -24,7 +24,7 @@ import {
   deployPoolV2,
   getWETH,
 } from './utils';
-import { Addresses, Contracts, getMasterChefPid, getWhale, Tokens } from './constants';
+import { Addresses, Contracts, getMasterChefPid, Tokens } from './constants';
 
 describe('Rift Pool Unit tests', () => {
   const fixedRate = BigNumber.from('10');
@@ -77,9 +77,10 @@ describe('Rift Pool Unit tests', () => {
       expect(await pool.totalSupply()).to.eq(0);
     });
 
-    it('should store vault and token address on deployment', async () => {
+    it('should store metadata on deployment', async () => {
       expect(await pool.vault()).to.eq(vault.address);
       expect(await pool.token()).to.eq(token.address);
+      expect(await pool.fixedRate()).to.eq(fixedRate);
     });
   });
 
@@ -90,12 +91,6 @@ describe('Rift Pool Unit tests', () => {
       pool = await deployPool(admin, vault, token, fixedRate);
     });
 
-    it('should reject deposits when amount exceeds balance', async () => {
-      await expect(pool.connect(alice).depositToken(tokenDepositAmount)).to.be.revertedWith(
-        'SafeMath: subtraction overflow',
-      );
-    });
-
     it('should reject withdraws', async () => {
       await expect(pool.connect(alice).withdrawToken(Addresses.zero)).to.be.revertedWith(
         'Cannot execute this function during current phase',
@@ -103,7 +98,7 @@ describe('Rift Pool Unit tests', () => {
     });
 
     describe('Deposits', async () => {
-      it('should mint pool staking tokens on tokenMC deposit', async () => {
+      it('should mint pool staking tokens on token deposit', async () => {
         await getTokens(alice, token, tokenDepositAmount);
         await token.connect(alice).approve(pool.address, tokenDepositAmount);
 
@@ -162,7 +157,7 @@ describe('Rift Pool Unit tests', () => {
         await expect(pool.unpairLiquidity(1, 1)).to.be.revertedWith('Only Vault');
       });
 
-      it('should pair hold LP tokens for token-eth', async () => {
+      it('should pair LP tokens for token-eth', async () => {
         await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
         const pair = IERC20__factory.connect(await pool.pair(), ethers.provider);
         const lpTokensReceived = await pool.lpTokenBalance();
@@ -179,28 +174,34 @@ describe('Rift Pool Unit tests', () => {
         expect(await weth.balanceOf(pool.address)).to.eq(0);
       });
 
-      it('should not make swap when pool can return fixed rate exactly', async () => {
-        const fixedReturn = ethers.BigNumber.from(779579815);
+      it('should return sufficent token to cover fixed rate after trades', async () => {
         await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
-        await getTokens(pool, weth, fixedReturn);
-        await vault.unpairLiquidityPool(token.address, 1, 1);
-      });
-
-      it('should swap token for weth when fixed rate is greater than returns', async () => {
+        await getTokens(bob, token, tokenDepositAmount);
         const sushiRouter = IUniswapV2Router02__factory.connect(Contracts.sushiRouter, bob);
-        const tokenTradeAmount = (await token.balanceOf(getWhale(token.address))).div(2); // save some for the other tests
-
-        await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
-        await getTokens(bob, token, tokenTradeAmount);
-        await token.connect(bob).approve(sushiRouter.address, tokenTradeAmount);
-
+        await token.connect(bob).approve(sushiRouter.address, tokenDepositAmount);
         await sushiRouter
           .connect(bob)
-          .swapExactTokensForTokens(tokenTradeAmount, 0, [token.address, weth.address], bob.address, 2000000000);
-
+          .swapExactTokensForTokens(tokenDepositAmount, 0, [token.address, weth.address], bob.address, 2000000000);
         await vault.unpairLiquidityPool(token.address, 1, 1);
         expect(await weth.balanceOf(pool.address)).to.eq(0);
-        expect(await token.balanceOf(pool.address)).to.eq(0);
+      });
+
+      it('should swap weth for token when fixed rate is greater than returns', async () => {
+        await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
+        const vaultWethBalance = await weth.balanceOf(vault.address);
+
+        const sushiRouter = IUniswapV2Router02__factory.connect(Contracts.sushiRouter, bob);
+        const wethTradeAmount = (await ethers.provider.getBalance(bob.address)).div(2);
+        await weth.connect(bob).deposit({ value: wethTradeAmount });
+        await weth.connect(bob).approve(sushiRouter.address, wethTradeAmount);
+        await sushiRouter
+          .connect(bob)
+          .swapExactTokensForTokens(wethTradeAmount, 0, [weth.address, token.address], bob.address, 2000000000);
+
+        await vault.unpairLiquidityPool(token.address, 1, 1);
+
+        expect(await weth.balanceOf(vault.address)).to.eq(vaultWethBalance); // should be no more weth than initial
+        expect(await weth.balanceOf(pool.address)).to.eq(0);
       });
     });
 
