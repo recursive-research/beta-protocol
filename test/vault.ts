@@ -20,6 +20,11 @@ describe('Rift Vault Unit tests', () => {
   const ethDepositAmountOverflow = ethers.utils.parseEther('11');
   const tokenDepositAmount = ethers.utils.parseEther('1');
 
+  const feeTo = Addresses.zero;
+  const newFeeTo = Addresses.multisig;
+  const feeAmount = BigNumber.from(0);
+  const newFeeAmount = BigNumber.from(10); // out of 1000
+
   let admin: SignerWithAddress;
   let alice: SignerWithAddress;
   let bob: SignerWithAddress;
@@ -43,7 +48,7 @@ describe('Rift Vault Unit tests', () => {
 
   describe('Deployment', async () => {
     beforeEach(async () => {
-      vault = await deployVault(admin, maxEth);
+      vault = await deployVault(admin, maxEth, feeTo, feeAmount);
       pool = await deployPool(admin, vault, token, fixedRate);
     });
 
@@ -69,11 +74,31 @@ describe('Rift Vault Unit tests', () => {
         'Ownable: caller is not the owner',
       );
     });
+
+    it('should reject feeTo update from non owner', async () => {
+      await expect(vault.connect(alice).setFeeTo(newFeeTo)).to.be.revertedWith('Ownable: caller is not the owner');
+    });
+
+    it('should reject feeAmount update from non owner', async () => {
+      await expect(vault.connect(alice).setFeeAmount(newFeeAmount)).to.be.revertedWith(
+        'Ownable: caller is not the owner',
+      );
+    });
+
+    it('should allow owner to set feeTo', async () => {
+      await vault.setFeeTo(newFeeTo);
+      expect(await vault.feeTo()).to.eq(newFeeTo);
+    });
+
+    it('should allow owner to set feeAmount', async () => {
+      await vault.setFeeAmount(newFeeAmount);
+      expect(await vault.feeAmount()).to.eq(newFeeAmount);
+    });
   });
 
   describe('Phase 0', async () => {
     beforeEach(async () => {
-      vault = await deployVault(admin, maxEth);
+      vault = await deployVault(admin, maxEth, feeTo, feeAmount);
       pool = await deployPool(admin, vault, token, fixedRate);
     });
 
@@ -160,7 +185,7 @@ describe('Rift Vault Unit tests', () => {
 
   describe('Phase 1', async () => {
     beforeEach(async () => {
-      vault = await deployVault(admin, maxEth);
+      vault = await deployVault(admin, maxEth, feeTo, feeAmount);
       pool = await deployPool(admin, vault, token, fixedRate);
 
       await vault.connect(alice).depositEth({ value: ethDepositAmount });
@@ -304,7 +329,7 @@ describe('Rift Vault Unit tests', () => {
 
   describe('Phase Two', async () => {
     beforeEach(async () => {
-      vault = await deployVault(admin, maxEth);
+      vault = await deployVault(admin, maxEth, feeTo, feeAmount);
       pool = await deployPool(admin, vault, token, fixedRate);
 
       await vault.connect(alice).depositEth({ value: ethDepositAmount });
@@ -370,6 +395,18 @@ describe('Rift Vault Unit tests', () => {
           .to.emit(vault, 'Withdraw')
           .withArgs(alice.address, vaultEthBalance);
       });
+    });
+
+    it('should return protocol fee when feeTo and feeAmount are set', async () => {
+      await vault.setFeeTo(newFeeTo);
+      await vault.setFeeAmount(newFeeAmount);
+
+      const aliceEthShare = await vault.ethShare(alice.address);
+      const protocolFee = aliceEthShare.mul(newFeeAmount).div(1000);
+
+      await vault.connect(alice).withdrawEth(Addresses.zero);
+
+      expect(await weth.balanceOf(newFeeTo)).to.eq(protocolFee);
     });
 
     describe('Migrations to V2', async () => {

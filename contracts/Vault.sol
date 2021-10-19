@@ -123,7 +123,8 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
         if (feeAmount != 0 && feeTo != address(0) && returnAmount > amount) {
             uint256 protocolFee = (returnAmount * feeAmount) / 1000;
             returnAmount -= protocolFee;
-            payable(feeTo).transfer(protocolFee);
+            IWETH(WETH).deposit{ value: protocolFee }();
+            IWETH(WETH).transfer(feeTo, protocolFee);
         }
         _burn(msg.sender, amount);
         if (_vaultV2 == address(0)) {
