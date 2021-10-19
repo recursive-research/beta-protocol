@@ -82,6 +82,7 @@ contract Pool is ERC20 {
             string(abi.encodePacked('rp', ERC20(_token).symbol(), 'v1'))
         )
     {
+        require(fixedRate < 1000, 'Invalid fixed rate');
         vault = IVault(_vaultAddress);
         token = _token;
         pid = _pid;

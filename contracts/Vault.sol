@@ -67,6 +67,7 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
         address _feeTo,
         uint256 _feeAmount
     ) {
+        require(_feeAmount <= 100, 'Invalid feeAmount'); // maximum 10%
         maxEth = _maxEth;
         feeTo = _feeTo;
         feeAmount = _feeAmount;
@@ -184,7 +185,9 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
 
     /// @notice allows the Vault owner to move the Vault into its next phase
     function nextPhase() external onlyOwner {
-        phase = Phases(uint256(phase) + 1);
+        uint256 _nextPhase = uint256(phase) + 1;
+        require(_nextPhase <= 2, 'Invalid next phase');
+        phase = Phases(_nextPhase);
     }
 
     /// @notice allows the owner to update the maximum amount of ETH/WETH depositable
@@ -200,6 +203,7 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
 
     /// @notice set the fee amount
     function setFeeAmount(uint256 _feeAmount) external onlyOwner {
+        require(_feeAmount <= 100, 'Invalid feeAmount'); // maximum 10%
         feeAmount = _feeAmount;
     }
 
