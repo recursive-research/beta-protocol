@@ -319,7 +319,7 @@ describe('Rift Pool Unit tests', () => {
           .swapExactTokensForTokens(tokenTradeAmount, 0, [token.address, weth.address], bob.address, 2000000000);
 
         await vault.unpairLiquidityPool(token.address, 0, 0);
-        expect(await weth.balanceOf(vault.address)).to.eq(0);
+        expect(await weth.balanceOf(pool.address)).to.eq(0);
         expect(await token.balanceOf(pool.address)).to.eq(tokenDepositAmount);
       });
     });
