@@ -54,7 +54,7 @@ contract Pool is ERC20 {
 
     /// @notice restricts actions based on which Phase the vault is in
     modifier duringPhase(IVault.Phases _phase) {
-        require(vault.phase() == _phase, 'Cannot execute this function during current phase');
+        require(vault.phase() == _phase, 'Invalid Phase function');
         _;
     }
 
@@ -136,13 +136,6 @@ contract Pool is ERC20 {
             IPoolV2(_poolV2).migrateLiquidity(returnAmount, msg.sender);
             emit Migration(msg.sender, returnAmount);
         }
-    }
-
-    /// @notice helper function to view a user's proportional share of token during phase two
-    /// @param _account the account of the user whose share is being requested
-    function tokenShare(address _account) external view returns (uint256 share) {
-        uint256 stakingTokenBalance = balanceOf(_account);
-        share = (IERC20(token).balanceOf(address(this)) * stakingTokenBalance) / totalSupply();
     }
 
     /// @notice function to add liquidity to the token <> WETH SushiSwap pool and stake the SLP tokens

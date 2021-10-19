@@ -24,7 +24,7 @@ import {
   deployPoolV2,
   getWETH,
 } from './utils';
-import { Addresses, Contracts, getMasterChefPid, Tokens } from './constants';
+import { Addresses, Contracts, getMasterChefPid, getSushiRewarder, Tokens } from './constants';
 
 describe('Rift Pool Unit tests', () => {
   const fixedRate = BigNumber.from('10');
@@ -90,6 +90,20 @@ describe('Rift Pool Unit tests', () => {
     it('should reject deployment with invalid fixed rate', async () => {
       await expect(deployPool(admin, vault, token, invalidFixedRate, true)).to.be.revertedWith('Invalid fixed rate');
     });
+
+    it('should reject deployment with invalid sushi master chef pid', async () => {
+      token = await getERC20(Tokens.yfi);
+      await expect(
+        vault.deployPool(token.address, getSushiRewarder(token.address), 0, fixedRate, false),
+      ).to.be.revertedWith('invalid pid mapping');
+    });
+
+    it('should reject deployment with invalid sushi master chef v2 pid', async () => {
+      token = await getERC20(Tokens.alcx);
+      await expect(
+        vault.deployPool(token.address, getSushiRewarder(token.address), 1, fixedRate, false),
+      ).to.be.revertedWith('invalid pid mapping');
+    });
   });
 
   describe('Phase Zero', async () => {
@@ -100,9 +114,7 @@ describe('Rift Pool Unit tests', () => {
     });
 
     it('should reject withdraws', async () => {
-      await expect(pool.connect(alice).withdrawToken(Addresses.zero)).to.be.revertedWith(
-        'Cannot execute this function during current phase',
-      );
+      await expect(pool.connect(alice).withdrawToken(Addresses.zero)).to.be.revertedWith('Invalid Phase function');
     });
 
     describe('Deposits', async () => {
@@ -146,15 +158,11 @@ describe('Rift Pool Unit tests', () => {
       });
 
       it('should reject deposits', async () => {
-        await expect(pool.connect(alice).depositToken(tokenDepositAmount)).to.be.revertedWith(
-          'Cannot execute this function during current phase',
-        );
+        await expect(pool.connect(alice).depositToken(tokenDepositAmount)).to.be.revertedWith('Invalid Phase function');
       });
 
       it('should reject withdraws', async () => {
-        await expect(pool.connect(alice).withdrawToken(Addresses.zero)).to.be.revertedWith(
-          'Cannot execute this function during current phase',
-        );
+        await expect(pool.connect(alice).withdrawToken(Addresses.zero)).to.be.revertedWith('Invalid Phase function');
       });
 
       it('should reject pairLiquidity calls from non-vault', async () => {
@@ -307,18 +315,11 @@ describe('Rift Pool Unit tests', () => {
     });
 
     it('should reject deposits', async () => {
-      await expect(pool.connect(alice).depositToken(tokenDepositAmount)).to.be.revertedWith(
-        'Cannot execute this function during current phase',
-      );
+      await expect(pool.connect(alice).depositToken(tokenDepositAmount)).to.be.revertedWith('Invalid Phase function');
     });
 
     it('should reject withdraw when user has no balance', async () => {
       await expect(pool.connect(bob).withdrawToken(Addresses.zero)).to.be.revertedWith('User has no balance');
-    });
-
-    it('should allow users to view their withdrawable balance', async () => {
-      const poolTokenBalance = await token.balanceOf(pool.address);
-      expect(await pool.tokenShare(alice.address)).to.eq(poolTokenBalance);
     });
 
     it('should allow users to withdraw their balance', async () => {

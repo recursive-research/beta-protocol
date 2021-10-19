@@ -86,6 +86,10 @@ describe('Rift Vault Unit tests', () => {
       );
     });
 
+    it('should reject invalid setFeeAmount from owner', async () => {
+      await expect(vault.setFeeAmount(invalidFeeAmount)).to.be.revertedWith('Invalid feeAmount');
+    });
+
     it('should allow owner to set feeTo', async () => {
       await vault.setFeeTo(newFeeTo);
       expect(await vault.feeTo()).to.eq(newFeeTo);
@@ -122,7 +126,7 @@ describe('Rift Vault Unit tests', () => {
     });
 
     it('should reject new pool deployment for the same token', async () => {
-      await expect(deployPool(admin, vault, token, fixedRate)).to.be.revertedWith('Tokens pool already deployed');
+      await expect(deployPool(admin, vault, token, fixedRate)).to.be.revertedWith('Tokens already deployed');
     });
 
     it('should allow owner to override with new pool', async () => {
@@ -166,20 +170,16 @@ describe('Rift Vault Unit tests', () => {
 
     it('should reject eth deposits that overflow maxEth', async () => {
       await expect(vault.connect(alice).depositEth({ value: ethDepositAmountOverflow })).to.be.revertedWith(
-        'Max eth cap has been hit',
+        'Max ETH overflow',
       );
     });
 
     it('should reject weth deposits that overflow maxEth', async () => {
-      await expect(vault.connect(alice).depositWeth(ethDepositAmountOverflow)).to.be.revertedWith(
-        'Max eth cap has been hit',
-      );
+      await expect(vault.connect(alice).depositWeth(ethDepositAmountOverflow)).to.be.revertedWith('Max ETH overflow');
     });
 
     it('should reject withdraws', async () => {
-      await expect(vault.connect(alice).withdrawEth(Addresses.zero)).to.be.revertedWith(
-        'Cannot execute this function during current phase',
-      );
+      await expect(vault.connect(alice).withdrawEth(Addresses.zero)).to.be.revertedWith('Invalid Phase function');
     });
 
     it('should allow owner to move to phase 1', async () => {
@@ -202,27 +202,21 @@ describe('Rift Vault Unit tests', () => {
     });
 
     it('should reject withdraws', async () => {
-      await expect(vault.connect(alice).withdrawEth(Addresses.zero)).to.be.revertedWith(
-        'Cannot execute this function during current phase',
-      );
+      await expect(vault.connect(alice).withdrawEth(Addresses.zero)).to.be.revertedWith('Invalid Phase function');
     });
 
     it('should reject eth deposits', async () => {
       await expect(vault.connect(alice).depositEth({ value: ethDepositAmount })).to.be.revertedWith(
-        'Cannot execute this function during current phase',
+        'Invalid Phase function',
       );
     });
 
     it('should reject weth deposits', async () => {
-      await expect(vault.connect(alice).depositWeth(ethDepositAmount)).to.be.revertedWith(
-        'Cannot execute this function during current phase',
-      );
+      await expect(vault.connect(alice).depositWeth(ethDepositAmount)).to.be.revertedWith('Invalid Phase function');
     });
 
     it('should reject owner updating maxEth', async () => {
-      await expect(vault.updateMaxEth(newMaxEth.mul(2))).to.be.revertedWith(
-        'Cannot execute this function during current phase',
-      );
+      await expect(vault.updateMaxEth(newMaxEth.mul(2))).to.be.revertedWith('Invalid Phase function');
     });
 
     it('should reject wrapEth calls from non owner', async () => {
@@ -245,9 +239,7 @@ describe('Rift Vault Unit tests', () => {
       });
 
       it('should reject pairLiquidityPool call for token without a pool', async () => {
-        await expect(vault.pairLiquidityPool(weth.address, 0, 0, 0, 0)).to.be.revertedWith(
-          'No pool deployed for this token',
-        );
+        await expect(vault.pairLiquidityPool(weth.address, 0, 0, 0, 0)).to.be.revertedWith('Invalid token');
       });
 
       it('should reject pairLiquidityPool calls from non owner', async () => {
@@ -284,9 +276,7 @@ describe('Rift Vault Unit tests', () => {
       });
 
       it('should reject unpairLiquidityPool call for token without a pool', async () => {
-        await expect(vault.unpairLiquidityPool(weth.address, 0, 0)).to.be.revertedWith(
-          'No pool deployed for this token',
-        );
+        await expect(vault.unpairLiquidityPool(weth.address, 0, 0)).to.be.revertedWith('Invalid token');
       });
 
       it('should allow owner to unpairLiquidityPool', async () => {
@@ -354,25 +344,16 @@ describe('Rift Vault Unit tests', () => {
 
     it('should reject users depositing ETH', async () => {
       await expect(vault.connect(alice).depositEth({ value: ethDepositAmount })).to.be.revertedWith(
-        'Cannot execute this function during current phase',
+        'Invalid Phase function',
       );
     });
 
     it('should reject users depositing weth', async () => {
-      await expect(vault.connect(alice).depositWeth(ethDepositAmount)).to.be.revertedWith(
-        'Cannot execute this function during current phase',
-      );
+      await expect(vault.connect(alice).depositWeth(ethDepositAmount)).to.be.revertedWith('Invalid Phase function');
     });
 
     it('should reject owner updating maxEth', async () => {
-      await expect(vault.updateMaxEth(newMaxEth.mul(2))).to.be.revertedWith(
-        'Cannot execute this function during current phase',
-      );
-    });
-
-    it('should allow users to view their withdrawable balance', async () => {
-      const vaultEthBalance = await ethers.provider.getBalance(vault.address);
-      expect(await vault.ethShare(alice.address)).to.eq(vaultEthBalance);
+      await expect(vault.updateMaxEth(newMaxEth.mul(2))).to.be.revertedWith('Invalid Phase function');
     });
 
     it('should reject moving to phase 3', async () => {
@@ -410,7 +391,9 @@ describe('Rift Vault Unit tests', () => {
       await vault.setFeeTo(newFeeTo);
       await vault.setFeeAmount(newFeeAmount);
 
-      const aliceEthShare = await vault.ethShare(alice.address);
+      const aliceEthShare = (await ethers.provider.getBalance(vault.address))
+        .mul(await vault.balanceOf(alice.address))
+        .div(await vault.totalSupply());
       const protocolFee = aliceEthShare.sub(ethDepositAmount).mul(newFeeAmount).div(1000);
 
       await vault.connect(alice).withdrawEth(Addresses.zero);
