@@ -13,6 +13,10 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     /// @notice the maximum amount of ETH that can be deposited into the contract during Phase Zero.
     /// Modifiable by owner.
     uint256 public maxEth;
+    /// @notice feeTo address for protocol fee
+    address public feeTo;
+    /// @notice fee out of 1000 on profits
+    uint256 public feeAmount;
 
     mapping(address => address) public tokenToPool;
 
@@ -58,8 +62,14 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
 
     /// @notice creates a new vault.
     /// @param _maxEth sets the maximum amount of ETH or WETH that can be deposited.
-    constructor(uint256 _maxEth) {
+    constructor(
+        uint256 _maxEth,
+        address _feeTo,
+        uint256 _feeAmount
+    ) {
         maxEth = _maxEth;
+        feeTo = _feeTo;
+        feeAmount = _feeAmount;
     }
 
     /// @notice allows the vault owner to deploy a new pool
@@ -109,6 +119,12 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
         uint256 amount = balanceOf(msg.sender);
         require(amount > 0, 'User has no balance');
         returnAmount = (address(this).balance * amount) / totalSupply();
+        // if feeAmount > 0 and feeTo is set and the position was profitable
+        if (feeAmount != 0 && feeTo != address(0) && returnAmount > amount) {
+            uint256 protocolFee = (returnAmount * feeAmount) / 1000;
+            returnAmount -= protocolFee;
+            payable(feeTo).transfer(protocolFee);
+        }
         _burn(msg.sender, amount);
         if (_vaultV2 == address(0)) {
             payable(msg.sender).transfer(returnAmount);
@@ -174,6 +190,16 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     /// Only relevant during phase zero, because deposits are not allowed during Phases 1 or 2
     function updateMaxEth(uint256 _maxEth) external onlyOwner duringPhase(Phases.Zero) {
         maxEth = _maxEth;
+    }
+
+    /// @notice set the fee to address
+    function setFeeTo(address _feeTo) external onlyOwner {
+        feeTo = _feeTo;
+    }
+
+    /// @notice set the fee amount
+    function setFeeAmount(uint256 _feeAmount) external onlyOwner {
+        feeAmount = _feeAmount;
     }
 
     /// @notice allows the owner to wrap any ETH in the contract. Called at the beginning of Phase One
