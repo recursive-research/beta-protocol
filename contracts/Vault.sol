@@ -159,7 +159,7 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
         uint256 _amountToken,
         uint256 _minAmountWeth,
         uint256 _minAmountToken
-    ) external onlyOwner {
+    ) external onlyOwner duringPhase(Phases.One) {
         address pool = tokenToPool[_token];
         require(pool != address(0), 'No pool deployed for this token');
         IWETH(WETH).transfer(pool, _amountWeth);
@@ -176,7 +176,7 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
         address _token,
         uint256 _minAmountWeth,
         uint256 _minAmountToken
-    ) external onlyOwner {
+    ) external onlyOwner duringPhase(Phases.One) {
         address pool = tokenToPool[_token];
         require(pool != address(0), 'No pool deployed for this token');
         Pool(pool).unpairLiquidity(_minAmountWeth, _minAmountToken);
