@@ -27,4 +27,6 @@ interface IMasterChefV2 {
         uint256 amount,
         address to
     ) external;
+
+    function lpToken(uint256 pid) external returns (address);
 }

@@ -27,8 +27,6 @@ contract Pool is ERC20 {
 
     /// @notice an ERC20 compliant token that can be deposited into this contract
     address public immutable token;
-    /// @notice Sushiswap pair for this token <> WETH
-    address public immutable pair;
     /// @notice the Sushiswap pool ID for the MasterChef or MasterChefV2 contracts
     uint256 public immutable pid;
     /// @notice the fixed rate (numerator out of 1000) returned to token depositors at the end of the period
@@ -36,6 +34,8 @@ contract Pool is ERC20 {
     /// @notice the Rift V1 Vault
     IVault public immutable vault;
 
+    /// @notice Sushiswap pair for this token <> WETH
+    address public pair;
     /// @notice tracks the intitial WETH deposit amount, so the Pool can calculate how much must be returned
     uint256 public tokenPrincipalAmount;
     /// @notice the SLP tokens received after the pool adds liquidity
@@ -54,7 +54,7 @@ contract Pool is ERC20 {
 
     /// @notice restricts actions based on which Phase the vault is in
     modifier duringPhase(IVault.Phases _phase) {
-        require(vault.phase() == _phase, 'Cannot execute this function during current phase');
+        require(vault.phase() == _phase, 'Invalid Phase function');
         _;
     }
 
@@ -82,12 +82,18 @@ contract Pool is ERC20 {
             string(abi.encodePacked('rp', ERC20(_token).symbol(), 'v1'))
         )
     {
+        require(_fixedRate < 1000, 'Invalid fixed rate');
+        pair = SushiSwapLibrary.pairFor(sushiFactory, _token, WETH);
+        if (_sushiRewarder == uint256(SushiRewarder.MasterChef)) {
+            require(address(IMasterChef(masterChef).poolInfo(_pid).lpToken) == pair, 'invalid pid mapping');
+        } else if (_sushiRewarder == uint256(SushiRewarder.MasterChefV2)) {
+            require(IMasterChefV2(masterChefV2).lpToken(_pid) == pair, 'invalid pid mapping');
+        }
         vault = IVault(_vaultAddress);
         token = _token;
         pid = _pid;
         sushiRewarder = SushiRewarder(_sushiRewarder);
         fixedRate = _fixedRate;
-        pair = SushiSwapLibrary.pairFor(sushiFactory, _token, WETH);
     }
 
     /// @notice emitted after a successful deposit
@@ -130,13 +136,6 @@ contract Pool is ERC20 {
             IPoolV2(_poolV2).migrateLiquidity(returnAmount, msg.sender);
             emit Migration(msg.sender, returnAmount);
         }
-    }
-
-    /// @notice helper function to view a user's proportional share of token during phase two
-    /// @param _account the account of the user whose share is being requested
-    function tokenShare(address _account) external view returns (uint256 share) {
-        uint256 stakingTokenBalance = balanceOf(_account);
-        share = (IERC20(token).balanceOf(address(this)) * stakingTokenBalance) / totalSupply();
     }
 
     /// @notice function to add liquidity to the token <> WETH SushiSwap pool and stake the SLP tokens
