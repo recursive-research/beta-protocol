@@ -20,14 +20,9 @@ import { deployContract } from 'ethereum-waffle';
 import { Contracts, getMasterChefPid, getSushiRewarder, getWhale, Tokens } from './constants';
 
 // Helper functions to deploy contracts
-export async function deployVault(
-  admin: SignerWithAddress,
-  maxEth: BigNumber,
-  feeTo: string,
-  feeAmount: BigNumber,
-): Promise<Vault> {
+export async function deployVault(admin: SignerWithAddress, feeTo: string, feeAmount: BigNumber): Promise<Vault> {
   const vaultArtifact: Artifact = await hre.artifacts.readArtifact('Vault');
-  return (await deployContract(admin, vaultArtifact, [maxEth, feeTo, feeAmount, Tokens.weth])) as Vault;
+  return (await deployContract(admin, vaultArtifact, [feeTo, feeAmount, Tokens.weth])) as Vault;
 }
 
 export async function deployVaultV2(admin: SignerWithAddress): Promise<VaultV2Mock> {

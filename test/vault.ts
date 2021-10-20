@@ -13,11 +13,7 @@ describe('Rift Vault Unit tests', () => {
 
   const fixedRate = BigNumber.from('5'); // out of 1000
 
-  const maxEth = ethers.utils.parseEther('10');
-  const newMaxEth = ethers.utils.parseEther('20');
-
   const ethDepositAmount = ethers.utils.parseEther('1');
-  const ethDepositAmountOverflow = ethers.utils.parseEther('11');
   const tokenDepositAmount = ethers.utils.parseEther('1');
 
   const feeTo = Addresses.zero;
@@ -49,7 +45,7 @@ describe('Rift Vault Unit tests', () => {
 
   describe('Deployment', async () => {
     beforeEach(async () => {
-      vault = await deployVault(admin, maxEth, feeTo, feeAmount);
+      vault = await deployVault(admin, feeTo, feeAmount);
       pool = await deployPool(admin, vault, token, fixedRate);
     });
 
@@ -60,10 +56,6 @@ describe('Rift Vault Unit tests', () => {
 
     it('should mint no tokens on deployment', async () => {
       expect(await vault.totalSupply()).to.eq(0);
-    });
-
-    it('should correctly assign initial max eth', async () => {
-      expect(await vault.maxEth()).to.eq(maxEth);
     });
 
     it('should be in phase zero on initialization', async () => {
@@ -101,23 +93,14 @@ describe('Rift Vault Unit tests', () => {
     });
 
     it('should reject deployment with invalid feeAmount', async () => {
-      await expect(deployVault(admin, maxEth, feeTo, invalidFeeAmount)).to.be.revertedWith('Invalid feeAmount');
+      await expect(deployVault(admin, feeTo, invalidFeeAmount)).to.be.revertedWith('Invalid feeAmount');
     });
   });
 
   describe('Phase 0', async () => {
     beforeEach(async () => {
-      vault = await deployVault(admin, maxEth, feeTo, feeAmount);
+      vault = await deployVault(admin, feeTo, feeAmount);
       pool = await deployPool(admin, vault, token, fixedRate);
-    });
-
-    it('should reject maxEth updates from non owner', async () => {
-      await expect(vault.connect(alice).updateMaxEth(newMaxEth)).to.be.revertedWith('Ownable: caller is not the owner');
-    });
-
-    it('should allow owner to update maxEth', async () => {
-      await vault.updateMaxEth(newMaxEth);
-      expect(await vault.maxEth()).to.eq(newMaxEth);
     });
 
     it('should reject pairLiquidityPool call', async () => {
@@ -178,16 +161,6 @@ describe('Rift Vault Unit tests', () => {
         .withArgs(alice.address, ethDepositAmount);
     });
 
-    it('should reject eth deposits that overflow maxEth', async () => {
-      await expect(vault.connect(alice).depositEth({ value: ethDepositAmountOverflow })).to.be.revertedWith(
-        'Max ETH overflow',
-      );
-    });
-
-    it('should reject weth deposits that overflow maxEth', async () => {
-      await expect(vault.connect(alice).depositWeth(ethDepositAmountOverflow)).to.be.revertedWith('Max ETH overflow');
-    });
-
     it('should reject withdraws', async () => {
       await expect(vault.connect(alice).withdrawEth(Addresses.zero)).to.be.revertedWith('Invalid Phase function');
     });
@@ -200,7 +173,7 @@ describe('Rift Vault Unit tests', () => {
 
   describe('Phase 1', async () => {
     beforeEach(async () => {
-      vault = await deployVault(admin, maxEth, feeTo, feeAmount);
+      vault = await deployVault(admin, feeTo, feeAmount);
       pool = await deployPool(admin, vault, token, fixedRate);
 
       await vault.connect(alice).depositEth({ value: ethDepositAmount });
@@ -223,10 +196,6 @@ describe('Rift Vault Unit tests', () => {
 
     it('should reject weth deposits', async () => {
       await expect(vault.connect(alice).depositWeth(ethDepositAmount)).to.be.revertedWith('Invalid Phase function');
-    });
-
-    it('should reject owner updating maxEth', async () => {
-      await expect(vault.updateMaxEth(newMaxEth.mul(2))).to.be.revertedWith('Invalid Phase function');
     });
 
     it('should reject wrapEth calls from non owner', async () => {
@@ -334,7 +303,7 @@ describe('Rift Vault Unit tests', () => {
 
   describe('Phase Two', async () => {
     beforeEach(async () => {
-      vault = await deployVault(admin, maxEth, feeTo, feeAmount);
+      vault = await deployVault(admin, feeTo, feeAmount);
       pool = await deployPool(admin, vault, token, fixedRate);
 
       await vault.connect(alice).depositEth({ value: ethDepositAmount });
@@ -370,10 +339,6 @@ describe('Rift Vault Unit tests', () => {
 
     it('should reject users depositing weth', async () => {
       await expect(vault.connect(alice).depositWeth(ethDepositAmount)).to.be.revertedWith('Invalid Phase function');
-    });
-
-    it('should reject owner updating maxEth', async () => {
-      await expect(vault.updateMaxEth(newMaxEth.mul(2))).to.be.revertedWith('Invalid Phase function');
     });
 
     it('should reject moving to phase 3', async () => {

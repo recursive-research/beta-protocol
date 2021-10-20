@@ -10,7 +10,7 @@ These contracts work together over a period of 3 phases, and users can only exec
 
 Upon deployment, the `Vault` is in Phase Zero. Note that the `Pool`'s functionality is also restricted based on the current phase of the `Vault`.
 
-The Vault deployer sets the `maxEth`, `feeTo`, and `feeAmount` state variables on deployment. `maxEth` is the total amount of `ETH` deposits that the Vault will accept. It can be modified by the contract owner during phase 1. `feeTo` is the address to which the protocol fee will be sent. `feeAmount` is the amount (out of 1000) that will be claimed as a protocol fee on profits from ETH depositors.
+The Vault deployer sets the `feeTo`, `feeAmount`, and `WETH` state variables on deployment. `feeTo` is the address to which the protocol fee will be sent. `feeAmount` is the amount (out of 1000) that will be claimed as a protocol fee on profits from ETH depositors. `WETH` is the address of the WETH9 contract.
 
 After deployment, the vault owner will be able to deploy new pools by calling `deployPool`. This creates a new `Pool` instance for a `token`. Each pool is deployed with a few important arguments:
 
@@ -21,7 +21,7 @@ After deployment, the vault owner will be able to deploy new pools by calling `d
 
 The Vault doesn't allow new pools to be deployed for a token that already has a pool. However, in the case that a new pool must be deployed, the owner can override this check and deploy a new pool with the updated config.
 
-During phase zero, users can deposit `ETH` or `WETH` into the Vault (using the `depositEth` or `depositWeth` functions), as long as their deposit doesn't cause the total amount of deposited `ETH` + `WETH` to be greater than `maxEth`. In return for their deposit, user receive an equivalent amount of the Vault's staking token. These deposits are not withdrawable until Phase Two.
+During phase zero, users can deposit `ETH` or `WETH` into the Vault (using the `depositEth` or `depositWeth` functions). In return for their deposit, user receive an equivalent amount of the Vault's staking token. These deposits are not withdrawable until Phase Two.
 
 The pool allows users to deposit the Pool's token into the contract while the Vault is in Phase Zero. For their deposit, users receive a 1:1 amount of the Pool's staking token. These deposits are not withdrawable until the vault is in Phase Two.
 

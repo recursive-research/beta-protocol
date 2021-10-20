@@ -29,7 +29,6 @@ import { Addresses, Contracts, getMasterChefPid, getSushiRewarder, Tokens } from
 describe('Rift Pool Unit tests', () => {
   const fixedRate = BigNumber.from('10');
   const invalidFixedRate = BigNumber.from('2000');
-  const maxEth = ethers.utils.parseEther('10');
 
   const ethDepositAmount = ethers.utils.parseEther('1');
   const tokenDepositAmount = ethers.utils.parseEther('1');
@@ -65,7 +64,7 @@ describe('Rift Pool Unit tests', () => {
   describe('Deployment', async () => {
     beforeEach(async () => {
       token = await getERC20(Tokens.aave);
-      vault = await deployVault(admin, maxEth, feeTo, feeAmount);
+      vault = await deployVault(admin, feeTo, feeAmount);
       pool = await deployPool(admin, vault, token, fixedRate);
     });
 
@@ -109,7 +108,7 @@ describe('Rift Pool Unit tests', () => {
   describe('Phase Zero', async () => {
     beforeEach(async () => {
       token = await getERC20(Tokens.aave);
-      vault = await deployVault(admin, maxEth, feeTo, feeAmount);
+      vault = await deployVault(admin, feeTo, feeAmount);
       pool = await deployPool(admin, vault, token, fixedRate);
     });
 
@@ -144,7 +143,7 @@ describe('Rift Pool Unit tests', () => {
     describe('Basic Token, no sushi rewards', async () => {
       beforeEach(async () => {
         token = await getERC20(Tokens.aave);
-        vault = await deployVault(admin, maxEth, feeTo, feeAmount);
+        vault = await deployVault(admin, feeTo, feeAmount);
         pool = await deployPool(admin, vault, token, fixedRate);
 
         await getTokens(alice, token, tokenDepositAmount);
@@ -224,7 +223,7 @@ describe('Rift Pool Unit tests', () => {
     describe('Token with Master Chef sushi rewards', async () => {
       beforeEach(async () => {
         token = await getERC20(Tokens.yfi);
-        vault = await deployVault(admin, maxEth, feeTo, feeAmount);
+        vault = await deployVault(admin, feeTo, feeAmount);
         pool = await deployPool(admin, vault, token, fixedRate);
 
         await getTokens(alice, token, tokenDepositAmount);
@@ -259,7 +258,7 @@ describe('Rift Pool Unit tests', () => {
     describe('Token with Master Chef V2 sushi rewards', async () => {
       beforeEach(async () => {
         token = await getERC20(Tokens.alcx);
-        vault = await deployVault(admin, maxEth, feeTo, feeAmount);
+        vault = await deployVault(admin, feeTo, feeAmount);
         pool = await deployPool(admin, vault, token, fixedRate);
 
         await getTokens(alice, token, tokenDepositAmount);
@@ -296,7 +295,7 @@ describe('Rift Pool Unit tests', () => {
         const fixedRateZero = BigNumber.from(0);
         const tokenDepositMinimal = BigNumber.from(100);
         token = await getERC20(Tokens.aave);
-        vault = await deployVault(admin, maxEth, feeTo, feeAmount);
+        vault = await deployVault(admin, feeTo, feeAmount);
         pool = await deployPool(admin, vault, token, fixedRateZero);
 
         await getTokens(alice, token, tokenDepositMinimal);
@@ -328,7 +327,7 @@ describe('Rift Pool Unit tests', () => {
   describe('Phase Two', async () => {
     beforeEach(async () => {
       token = await getERC20(Tokens.yfi);
-      vault = await deployVault(admin, maxEth, feeTo, feeAmount);
+      vault = await deployVault(admin, feeTo, feeAmount);
       pool = await deployPool(admin, vault, token, fixedRate);
 
       await getTokens(alice, token, tokenDepositAmount);

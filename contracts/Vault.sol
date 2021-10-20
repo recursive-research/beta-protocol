@@ -9,10 +9,8 @@ import './Pool.sol';
 /// @title Rift V1 Eth Vault
 /// @notice allows users to deposit eth, which will deployed to various pools to earn a return during a period.
 contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
+    /// @notice weth9 address
     address public immutable WETH;
-    /// @notice the maximum amount of ETH that can be deposited into the contract during Phase Zero.
-    /// Modifiable by owner.
-    uint256 public maxEth;
     /// @notice feeTo address for protocol fee
     address public feeTo;
     /// @notice fee out of 1000 on profits
@@ -61,16 +59,13 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     event LiquidityReturned(address indexed pool);
 
     /// @notice creates a new vault.
-    /// @param _maxEth sets the maximum amount of ETH or WETH that can be deposited.
     constructor(
-        uint256 _maxEth,
         address _feeTo,
         uint256 _feeAmount,
         address _weth
     ) {
         require(_feeAmount <= 100, 'Invalid feeAmount'); // maximum 10%
         require(_weth != address(0), 'Invalid weth');
-        maxEth = _maxEth;
         feeTo = _feeTo;
         feeAmount = _feeAmount;
         WETH = _weth;
@@ -97,7 +92,6 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
 
     /// @notice allows users to deposit ETH during Phase zero and receive a staking token 1:1
     function depositEth() external payable duringPhase(Phases.Zero) {
-        require(totalSupply() + msg.value <= maxEth, 'Max ETH overflow');
         _mint(msg.sender, msg.value);
         emit Deposit(msg.sender, msg.value);
     }
@@ -105,7 +99,6 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     /// @notice allows users to deposit WETH during Phase zero and receive a staking token 1:1
     /// @param _amount the amount of WETH to deposit
     function depositWeth(uint256 _amount) external duringPhase(Phases.Zero) {
-        require(totalSupply() + _amount <= maxEth, 'Max ETH overflow');
         IWETH(WETH).transferFrom(msg.sender, address(this), _amount);
         _mint(msg.sender, _amount);
         emit Deposit(msg.sender, _amount);
@@ -183,12 +176,6 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
         uint256 _nextPhase = uint256(phase) + 1;
         require(_nextPhase <= 2, 'Invalid next phase');
         phase = Phases(_nextPhase);
-    }
-
-    /// @notice allows the owner to update the maximum amount of ETH/WETH depositable
-    /// Only relevant during phase zero, because deposits are not allowed during Phases 1 or 2
-    function updateMaxEth(uint256 _maxEth) external onlyOwner duringPhase(Phases.Zero) {
-        maxEth = _maxEth;
     }
 
     /// @notice set the fee to address
