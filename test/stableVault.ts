@@ -1,10 +1,12 @@
 import { expect } from 'chai';
-import { ethers } from 'hardhat';
+import hre, { ethers } from 'hardhat';
 import { BigNumber } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { ERC20, StableVault } from '../typechain';
 import { deployStableVault, deployStableVaultV2, getERC20, getTokens } from './utils';
 import { Addresses, Tokens } from './constants';
+import { Artifact } from 'hardhat/types';
+import { deployContract } from 'ethereum-waffle';
 
 describe('Rift Stable Vault Unit tests', () => {
   const usdcDepositAmount = BigNumber.from(1000).mul(1e6);
@@ -33,6 +35,22 @@ describe('Rift Stable Vault Unit tests', () => {
 
     usdc = await getERC20(Tokens.usdc);
     usdt = await getERC20(Tokens.usdt);
+  });
+
+  describe('Deployment', async () => {
+    it('should reject deployment with invalid usdc address', async () => {
+      const stableVaultArtifact: Artifact = await hre.artifacts.readArtifact('StableVault');
+      await expect(deployContract(admin, stableVaultArtifact, [Addresses.zero, Tokens.usdt])).to.be.revertedWith(
+        'Invalid USDC address',
+      );
+    });
+
+    it('should reject deployment with invalid usdt address', async () => {
+      const stableVaultArtifact: Artifact = await hre.artifacts.readArtifact('StableVault');
+      await expect(deployContract(admin, stableVaultArtifact, [Tokens.usdc, Addresses.zero])).to.be.revertedWith(
+        'Invalid USDT address',
+      );
+    });
   });
 
   describe('Deposits', async () => {

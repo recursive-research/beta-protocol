@@ -27,11 +27,11 @@ contract StableVault is Ownable {
     bool public liquidityRemoved;
 
     /// @notice ERC20s that will be minted and burned on USDC/USDC deposit/withdraw
-    StableVaultToken public svUsdc = new StableVaultToken(usdc);
-    StableVaultToken public svUsdt = new StableVaultToken(usdt);
+    StableVaultToken public immutable svUsdc;
+    StableVaultToken public immutable svUsdt;
 
     /// @notice LP tokens for the USDC-USDT UniswapV2 Pool
-    address public pair = UniswapV2Library.pairFor(uniswapFactory, usdc, usdt);
+    address public immutable pair;
 
     /// @notice restricts actions to USDC and USDT
     modifier validToken(address _token) {
@@ -62,6 +62,9 @@ contract StableVault is Ownable {
         require(_usdt != address(0), 'Invalid USDT address');
         usdc = _usdc;
         usdt = _usdt;
+        svUsdc = new StableVaultToken(_usdc);
+        svUsdt = new StableVaultToken(_usdt);
+        pair = UniswapV2Library.pairFor(uniswapFactory, _usdc, _usdt);
     }
 
     /// @notice allows users to deposit a token before liquidity has been deployed. Mints
