@@ -18,6 +18,7 @@
       }
     ],
     "reason-string": ["warn", { "maxLength": 64 }],
-    "quotes": ["error", "single"]
+    "quotes": ["error", "single"],
+    "var-name-mixedcase": "off"
   }
 }

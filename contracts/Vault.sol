@@ -9,7 +9,7 @@ import './Pool.sol';
 /// @title Rift V1 Eth Vault
 /// @notice allows users to deposit eth, which will deployed to various pools to earn a return during a period.
 contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
-    address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address public immutable WETH;
     /// @notice the maximum amount of ETH that can be deposited into the contract during Phase Zero.
     /// Modifiable by owner.
     uint256 public maxEth;
@@ -65,12 +65,15 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     constructor(
         uint256 _maxEth,
         address _feeTo,
-        uint256 _feeAmount
+        uint256 _feeAmount,
+        address _weth
     ) {
         require(_feeAmount <= 100, 'Invalid feeAmount'); // maximum 10%
+        require(_weth != address(0), 'Invalid weth');
         maxEth = _maxEth;
         feeTo = _feeTo;
         feeAmount = _feeAmount;
+        WETH = _weth;
     }
 
     /// @notice allows the vault owner to deploy a new pool
@@ -88,7 +91,7 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
         bool _override
     ) external onlyOwner {
         require(tokenToPool[_token] == address(0) || _override, 'Tokens already deployed');
-        address newPool = address(new Pool(address(this), _token, _sushiRewarder, _pid, _fixedRate));
+        address newPool = address(new Pool(address(this), _token, _sushiRewarder, _pid, _fixedRate, WETH));
         tokenToPool[_token] = newPool;
     }
 

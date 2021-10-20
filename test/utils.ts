@@ -27,7 +27,7 @@ export async function deployVault(
   feeAmount: BigNumber,
 ): Promise<Vault> {
   const vaultArtifact: Artifact = await hre.artifacts.readArtifact('Vault');
-  return (await deployContract(admin, vaultArtifact, [maxEth, feeTo, feeAmount])) as Vault;
+  return (await deployContract(admin, vaultArtifact, [maxEth, feeTo, feeAmount, Tokens.weth])) as Vault;
 }
 
 export async function deployVaultV2(admin: SignerWithAddress): Promise<VaultV2Mock> {

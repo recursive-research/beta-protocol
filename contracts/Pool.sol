@@ -23,10 +23,11 @@ contract Pool is ERC20 {
     address public constant sushiRouter = 0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F;
     address public constant masterChef = 0xc2EdaD668740f1aA35E4D8f227fB8E17dcA888Cd;
     address public constant masterChefV2 = 0xEF0881eC094552b2e128Cf945EF17a6752B4Ec5d;
-    address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     /// @notice an ERC20 compliant token that can be deposited into this contract
     address public immutable token;
+    /// @notice weth9 address
+    address public immutable WETH;
     /// @notice the Sushiswap pool ID for the MasterChef or MasterChefV2 contracts
     uint256 public immutable pid;
     /// @notice the fixed rate (numerator out of 1000) returned to token depositors at the end of the period
@@ -70,12 +71,14 @@ contract Pool is ERC20 {
     /// @param _sushiRewarder how the SLP tokens receive staking rewards - MasterChef, MasterChefV2, or None
     /// @param _pid the Sushiswap pool ID in the relevant sushiRewarder
     /// @param _fixedRate the fixed rate that that will be returned to token depositors for this pool
+    /// @param _weth WETH9 address, validated by vault
     constructor(
         address _vaultAddress,
         address _token,
         uint256 _sushiRewarder,
         uint256 _pid,
-        uint256 _fixedRate
+        uint256 _fixedRate,
+        address _weth
     )
         ERC20(
             string(abi.encodePacked('Rift ', ERC20(_token).name(), ' Pool V1')),
@@ -83,7 +86,7 @@ contract Pool is ERC20 {
         )
     {
         require(_fixedRate < 1000, 'Invalid fixed rate');
-        pair = SushiSwapLibrary.pairFor(sushiFactory, _token, WETH);
+        pair = SushiSwapLibrary.pairFor(sushiFactory, _token, _weth);
         if (_sushiRewarder == uint256(SushiRewarder.MasterChef)) {
             require(address(IMasterChef(masterChef).poolInfo(_pid).lpToken) == pair, 'invalid pid mapping');
         } else if (_sushiRewarder == uint256(SushiRewarder.MasterChefV2)) {
@@ -94,6 +97,7 @@ contract Pool is ERC20 {
         pid = _pid;
         sushiRewarder = SushiRewarder(_sushiRewarder);
         fixedRate = _fixedRate;
+        WETH = _weth;
     }
 
     /// @notice emitted after a successful deposit
