@@ -55,7 +55,7 @@ export async function deployPoolV2(admin: SignerWithAddress, address: string): P
 
 export async function deployStableVault(admin: SignerWithAddress): Promise<StableVault> {
   const stableVaultArtifact: Artifact = await hre.artifacts.readArtifact('StableVault');
-  return (await deployContract(admin, stableVaultArtifact)) as StableVault;
+  return (await deployContract(admin, stableVaultArtifact, [Tokens.usdc, Tokens.usdt])) as StableVault;
 }
 
 export async function deployStableVaultV2(admin: SignerWithAddress, address: string): Promise<StableVaultV2Mock> {

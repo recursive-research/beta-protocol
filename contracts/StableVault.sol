@@ -19,8 +19,8 @@ contract StableVault is Ownable {
     address public constant uniswapFactory = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
     address public constant uniswapRouter = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     address public constant uniswapV3Router = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
-    address public constant usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    address public constant usdt = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
+    address public immutable usdc;
+    address public immutable usdt;
 
     /// @notice state variables to track phases of the contract
     bool public liquidityAdded;
@@ -56,6 +56,13 @@ contract StableVault is Ownable {
     /// @param user the address that migrated from the StableVault
     /// @param amount The amount of token that was migrated
     event Migration(address indexed token, address indexed user, uint256 amount);
+
+    constructor(address _usdc, address _usdt) {
+        require(_usdc != address(0), 'Invalid USDC address');
+        require(_usdt != address(0), 'Invalid USDT address');
+        usdc = _usdc;
+        usdt = _usdt;
+    }
 
     /// @notice allows users to deposit a token before liquidity has been deployed. Mints
     /// the user a StableVaultToken ERC20 based on which token they deposit
