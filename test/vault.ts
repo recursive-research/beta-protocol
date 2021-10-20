@@ -1,11 +1,13 @@
 import { expect } from 'chai';
 import { BigNumber } from 'ethers';
-import { ethers } from 'hardhat';
+import hre, { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
 import { deployPool, deployVault, deployVaultV2, getERC20, getTokens, getWETH } from './utils';
 import { Vault, ERC20, Pool, IWETH, VaultV2Mock } from '../typechain';
 import { Addresses, Tokens } from './constants';
+import { Artifact } from 'hardhat/types';
+import { deployContract } from 'ethereum-waffle';
 
 describe('Rift Vault Unit tests', () => {
   const tokenName = 'RIFT - Fixed Rate ETH V1';
@@ -47,6 +49,13 @@ describe('Rift Vault Unit tests', () => {
     beforeEach(async () => {
       vault = await deployVault(admin, feeTo, feeAmount);
       pool = await deployPool(admin, vault, token, fixedRate);
+    });
+
+    it('should reject deployment with invalid weth address', async () => {
+      const vaultArtifact: Artifact = await hre.artifacts.readArtifact('Vault');
+      await expect(deployContract(admin, vaultArtifact, [feeTo, feeAmount, Addresses.zero])).to.be.revertedWith(
+        'Invalid weth',
+      );
     });
 
     it('should correctly assign erc20 metadata', async () => {
