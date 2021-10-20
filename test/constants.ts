@@ -19,6 +19,7 @@ export const Contracts = {
 export const Addresses = {
   zero: '0x0000000000000000000000000000000000000000',
   dead: '0x000000000000000000000000000000000000dEaD',
+  multisig: '0xFf89C654846B2E4BC572cEABE77056daf7b299a3',
 };
 
 export function getWhale(address: string): string {

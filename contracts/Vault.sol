@@ -10,15 +10,13 @@ import './Pool.sol';
 /// @notice allows users to deposit eth, which will deployed to various pools to earn a return during a period.
 contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-    /// @notice the fixed rate that Pools are required to return to the Vault at the end of the period.
-    /// Modifiable by owner.
-    uint256 public fixedRate;
     /// @notice the maximum amount of ETH that can be deposited into the contract during Phase Zero.
     /// Modifiable by owner.
     uint256 public maxEth;
-    /// @notice initial timestamp on which fixed rate begins. set by the owner after all liquidity has been
-    /// paired with pools
-    uint256 public depositTimestamp;
+    /// @notice feeTo address for protocol fee
+    address public feeTo;
+    /// @notice fee out of 1000 on profits
+    uint256 public feeAmount;
 
     mapping(address => address) public tokenToPool;
 
@@ -36,14 +34,6 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     modifier duringPhase(Phases _phase) {
         require(phase == _phase, 'Cannot execute this function during current phase');
         _;
-    }
-
-    /// @notice creates a new vault.
-    /// @param _fixedRate numerator for the fixed rate that will be returned from Pools.
-    /// @param _maxEth sets the maximum amount of ETH or WETH that can be deposited.
-    constructor(uint256 _fixedRate, uint256 _maxEth) {
-        fixedRate = _fixedRate;
-        maxEth = _maxEth;
     }
 
     /// @notice emitted after a successful deposit
@@ -70,20 +60,34 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     /// @param pool the pool from which liquidity was return
     event LiquidityReturned(address indexed pool);
 
+    /// @notice creates a new vault.
+    /// @param _maxEth sets the maximum amount of ETH or WETH that can be deposited.
+    constructor(
+        uint256 _maxEth,
+        address _feeTo,
+        uint256 _feeAmount
+    ) {
+        maxEth = _maxEth;
+        feeTo = _feeTo;
+        feeAmount = _feeAmount;
+    }
+
     /// @notice allows the vault owner to deploy a new pool
     /// @param _token deploy a pool for this token
     /// @param _sushiRewarder how SLP tokens receive staking rewards. See pool contract
     /// @param _pid the sushiswap pool ID in the relevant sushi rewarder. See pool contract
+    /// @param _fixedRate the fixed rate that the pool will return to token depositors
     /// @param _override allows owner to deploy new pool if sushi rewarder or pid should
     /// be updated
     function deployPool(
         address _token,
         uint256 _sushiRewarder,
         uint256 _pid,
+        uint256 _fixedRate,
         bool _override
     ) external onlyOwner {
         require(tokenToPool[_token] == address(0) || _override, 'Tokens pool already deployed');
-        address newPool = address(new Pool(address(this), _token, _sushiRewarder, _pid));
+        address newPool = address(new Pool(address(this), _token, _sushiRewarder, _pid, _fixedRate));
         tokenToPool[_token] = newPool;
     }
 
@@ -115,6 +119,13 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
         uint256 amount = balanceOf(msg.sender);
         require(amount > 0, 'User has no balance');
         returnAmount = (address(this).balance * amount) / totalSupply();
+        // if feeAmount > 0 and feeTo is set and the position was profitable
+        if (feeAmount != 0 && feeTo != address(0) && returnAmount > amount) {
+            uint256 protocolFee = ((returnAmount - amount) * feeAmount) / 1000;
+            returnAmount -= protocolFee;
+            IWETH(WETH).deposit{ value: protocolFee }();
+            IWETH(WETH).transfer(feeTo, protocolFee);
+        }
         _burn(msg.sender, amount);
         if (_vaultV2 == address(0)) {
             payable(msg.sender).transfer(returnAmount);
@@ -182,15 +193,14 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
         maxEth = _maxEth;
     }
 
-    /// @notice allows the owner to update the fixed rate
-    function updateFixedRate(uint256 _fixedRate) external onlyOwner {
-        fixedRate = _fixedRate;
+    /// @notice set the fee to address
+    function setFeeTo(address _feeTo) external onlyOwner {
+        feeTo = _feeTo;
     }
 
-    /// @notice after the vault owner has called pairLiquidityPool on each pool, they call
-    /// this function to define when ETH begins accruing interest
-    function setDepositTimestamp() external onlyOwner duringPhase(Phases.One) {
-        depositTimestamp = block.timestamp;
+    /// @notice set the fee amount
+    function setFeeAmount(uint256 _feeAmount) external onlyOwner {
+        feeAmount = _feeAmount;
     }
 
     /// @notice allows the owner to wrap any ETH in the contract. Called at the beginning of Phase One

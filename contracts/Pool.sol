@@ -31,13 +31,18 @@ contract Pool is ERC20 {
     address public immutable pair;
     /// @notice the Sushiswap pool ID for the MasterChef or MasterChefV2 contracts
     uint256 public immutable pid;
+    /// @notice the fixed rate (numerator out of 1000) returned to token depositors at the end of the period
+    uint256 public immutable fixedRate;
     /// @notice the Rift V1 Vault
     IVault public immutable vault;
 
     /// @notice tracks the intitial WETH deposit amount, so the Pool can calculate how much must be returned
-    uint256 public wethPrincipalAmount;
+    uint256 public tokenPrincipalAmount;
     /// @notice the SLP tokens received after the pool adds liquidity
     uint256 public lpTokenBalance;
+    /// @notice initial timestamp on which fixed rate begins. set by the owner after all liquidity has been
+    /// paired with pools
+    uint256 public depositTimestamp;
 
     /// @notice indicator how the SLP tokens can be staked to receive staking rewards
     enum SushiRewarder {
@@ -64,11 +69,13 @@ contract Pool is ERC20 {
     /// @param _token address of the token that the Pool will accept
     /// @param _sushiRewarder how the SLP tokens receive staking rewards - MasterChef, MasterChefV2, or None
     /// @param _pid the Sushiswap pool ID in the relevant sushiRewarder
+    /// @param _fixedRate the fixed rate that that will be returned to token depositors for this pool
     constructor(
         address _vaultAddress,
         address _token,
         uint256 _sushiRewarder,
-        uint256 _pid
+        uint256 _pid,
+        uint256 _fixedRate
     )
         ERC20(
             string(abi.encodePacked('Rift ', ERC20(_token).name(), ' Pool V1')),
@@ -79,6 +86,7 @@ contract Pool is ERC20 {
         token = _token;
         pid = _pid;
         sushiRewarder = SushiRewarder(_sushiRewarder);
+        fixedRate = _fixedRate;
         pair = SushiSwapLibrary.pairFor(sushiFactory, _token, WETH);
     }
 
@@ -108,10 +116,10 @@ contract Pool is ERC20 {
     /// @notice allows user to withdraw or migrate from the pool during Phase Two
     /// @param _poolV2 if the user wishes to migrate their token to Rift's V2 Pools, they can
     /// do so by setting this parameter as a valid V2 pool address.
-    function withdrawToken(address _poolV2) external duringPhase(IVault.Phases.Two) returns (uint256 returnAmount) {
+    function withdrawToken(address _poolV2) external duringPhase(IVault.Phases.Two) {
         uint256 amount = balanceOf(msg.sender);
         require(amount > 0, 'User has no balance');
-        returnAmount = (IERC20(token).balanceOf(address(this)) * amount) / totalSupply();
+        uint256 returnAmount = (IERC20(token).balanceOf(address(this)) * amount) / totalSupply();
         _burn(msg.sender, amount);
         if (_poolV2 == address(0)) {
             IERC20(token).safeTransfer(msg.sender, returnAmount);
@@ -151,19 +159,21 @@ contract Pool is ERC20 {
         IERC20(token).safeApprove(sushiRouter, 0);
         IERC20(token).safeApprove(sushiRouter, _amountToken);
 
-        (uint256 wethDeposited, , uint256 lpTokensReceived) = IUniswapV2Router02(sushiRouter).addLiquidity(
-            WETH,
-            token,
-            _amountWeth,
-            _amountToken,
-            _minAmountWeth,
-            _minAmountToken,
-            address(this),
-            block.timestamp
-        );
+        (uint256 wethDeposited, uint256 tokenDeposited, uint256 lpTokensReceived) = IUniswapV2Router02(sushiRouter)
+            .addLiquidity(
+                WETH,
+                token,
+                _amountWeth,
+                _amountToken,
+                _minAmountWeth,
+                _minAmountToken,
+                address(this),
+                block.timestamp
+            );
 
-        wethPrincipalAmount += wethDeposited;
+        tokenPrincipalAmount += tokenDeposited;
         lpTokenBalance += lpTokensReceived;
+        depositTimestamp = block.timestamp;
 
         if (wethDeposited < _amountWeth) {
             uint256 wethSurplus = _amountWeth - wethDeposited;
@@ -174,11 +184,12 @@ contract Pool is ERC20 {
         return wethDeposited;
     }
 
-    /// @notice function to unstake SLP tokens, remove liquidity from the token <> WETH SushiSwap pool, and
-    /// return WETH to the Vault contract based on the required fixed rate, the initial amount of WETH
-    /// deposited by the Vault, and the timestamp of the initial WETH deposit. Based on these variables,
-    /// the Pool may need to swap some of token for WETH to return the required fixed rate. If there is
-    /// enough WETH to return the required amount, any remaining WETH is swapped for the token.
+    /// @notice function to unstake SLP tokens, remove liquidity from the token <> WETH SushiSwap pool,
+    /// calculate the required amount of `token` to be returned to the initial depositors, and send any
+    /// surplus returns back to the Vault contract in the form of WETH. If the amount of `token` returned
+    /// from staking and LP-ing is insufficient to return the required fixed rate, the pool may need to
+    /// swap some of the WETH for `token`. If there is not enough to return the required amount of `token`
+    /// to the depositors, the pool may need to swap the entire WETH balance for `token`.
     /// Can only be called by the Vault. The only Vault function that calls this is `unpairLiquidityPool`
     /// which in turn is only callable by the Vault Owner. The Vault owner can set min amounts, but
     /// sufficient actions should be taken to prevent frontrunning.
@@ -188,7 +199,7 @@ contract Pool is ERC20 {
         unstake(lpTokenBalance);
 
         IERC20(pair).approve(sushiRouter, lpTokenBalance);
-        IUniswapV2Router02(sushiRouter).removeLiquidity(
+        (, uint256 tokenReceived) = IUniswapV2Router02(sushiRouter).removeLiquidity(
             WETH,
             token,
             lpTokenBalance,
@@ -198,66 +209,61 @@ contract Pool is ERC20 {
             block.timestamp
         );
 
-        // calculate the amount of WETH owed back to Vault. This is calculated as the initial deposit
-        // plus interest accrued during the period based on the vault's fixed rate, the initial deposit
-        // amount, and the duration of deposit
-        uint256 depositTimestamp = vault.depositTimestamp();
-        uint256 wethOwed = wethPrincipalAmount +
-            (((wethPrincipalAmount * vault.fixedRate()) / 100) * (block.timestamp - depositTimestamp)) /
-            (365 days);
         uint256 wethBalance = IWETH(WETH).balanceOf(address(this));
+        // calculate the amount of `token` owed back to depositors. This is calculated as the initial principal
+        // plus interest accrued during the period based on the pool's fixed rate, the initial deposit
+        // amount, and the duration of deposit
+        uint256 tokenOwed = tokenPrincipalAmount +
+            (((tokenPrincipalAmount * fixedRate) / 1000) * (block.timestamp - depositTimestamp)) /
+            (365 days);
 
-        // if the WETH balance in the contract is enough to pay back the fixed rate, the pool transfers
-        // that amount to the Vault, and converts any remaining WETH into token
-        if (wethBalance >= wethOwed) {
-            IWETH(WETH).transfer(address(vault), wethOwed);
-            wethBalance -= wethOwed;
+        if (tokenReceived > tokenOwed) {
+            // if the amount of tokens received back from the LP position is sufficient to pay back the fixed rate,
+            // the pool swaps any surplus tokens to WETH.
+            uint256 tokenSurplus = tokenReceived - tokenOwed;
+            IERC20(token).safeApprove(sushiRouter, 0);
+            IERC20(token).safeApprove(sushiRouter, tokenSurplus);
+            wethBalance += IUniswapV2Router02(sushiRouter).swapExactTokensForTokens(
+                tokenSurplus,
+                0,
+                getPath(token, WETH),
+                address(this),
+                block.timestamp
+            )[1];
+        } else if (tokenReceived < tokenOwed) {
+            // if the amount of tokens received back from the LP position is insufficient to pay back the fixed rate,
+            // the pool swaps the required weth amount to `token` to pay back the `token` depositors.
+            uint256 tokenDeficit = tokenOwed - tokenReceived;
 
-            if (wethBalance > 0) {
-                IWETH(WETH).approve(sushiRouter, wethBalance);
-                IUniswapV2Router02(sushiRouter).swapExactTokensForTokens(
+            (uint256 reserveToken, uint256 reserveWETH) = SushiSwapLibrary.getReserves(sushiFactory, token, WETH);
+            uint256 wethQuote = SushiSwapLibrary.getAmountIn(tokenDeficit, reserveWETH, reserveToken);
+
+            IWETH(WETH).approve(sushiRouter, wethBalance);
+            if (wethQuote <= wethBalance) {
+                // if the required amount of WETH is less than the current WETH balance of the Pool, swap only the
+                // required amount of WETH
+                wethBalance -= IUniswapV2Router02(sushiRouter).swapTokensForExactTokens(
+                    tokenDeficit,
+                    wethBalance,
+                    getPath(WETH, token),
+                    address(this),
+                    block.timestamp
+                )[0];
+            } else {
+                // if the required amount of WETH is greater than the current WETH balance of the Pool, swap
+                // all remaining WETH to `token` to pay back as much as possible
+                wethBalance -= IUniswapV2Router02(sushiRouter).swapExactTokensForTokens(
                     wethBalance,
                     0,
                     getPath(WETH, token),
                     address(this),
                     block.timestamp
-                );
+                )[0];
             }
-        } else {
-            // if the WETH balance is not enough to pay back the fixed rate, the pool converts some of its
-            // token balance into the required amount of WETH and sends the owed WETH back to the vault
-            uint256 tokenBalance = IERC20(token).balanceOf(address(this));
-            uint256 wethDeficit = wethOwed - wethBalance;
+        }
 
-            (uint256 reserveToken, uint256 reserveWETH) = SushiSwapLibrary.getReserves(sushiFactory, token, WETH);
-            uint256 tokenQuote = SushiSwapLibrary.getAmountIn(wethDeficit, reserveToken, reserveWETH);
-
-            IERC20(token).safeApprove(sushiRouter, 0);
-            IERC20(token).safeApprove(sushiRouter, tokenBalance);
-            // if the pools token balance is enough to pay back the full fixed rate, the pool swaps the
-            // required amount of token into WETH, and transfers owed WETH to the vault, and
-            // keeps all remaining token.
-            if (tokenQuote <= tokenBalance) {
-                wethBalance += IUniswapV2Router02(sushiRouter).swapTokensForExactTokens(
-                    wethDeficit,
-                    tokenBalance,
-                    getPath(token, WETH),
-                    address(this),
-                    block.timestamp
-                )[1];
-                IWETH(WETH).transfer(address(vault), wethBalance);
-            } else {
-                // if the pool's token balance is not enough to pay back the full fixed rate, the pool swaps
-                // its entire token balance into WETH, and pays back as much as it can.
-                wethBalance += IUniswapV2Router02(sushiRouter).swapExactTokensForTokens(
-                    tokenBalance,
-                    0,
-                    getPath(token, WETH),
-                    address(this),
-                    block.timestamp
-                )[1];
-                IWETH(WETH).transfer(address(vault), wethBalance);
-            }
+        if (wethBalance > 0) {
+            IWETH(WETH).transfer(address(vault), wethBalance);
         }
     }
 

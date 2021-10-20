@@ -20,9 +20,14 @@ import { deployContract } from 'ethereum-waffle';
 import { Contracts, getMasterChefPid, getSushiRewarder, getWhale, Tokens } from './constants';
 
 // Helper functions to deploy contracts
-export async function deployVault(admin: SignerWithAddress, fixedRate: BigNumber, maxEth: BigNumber): Promise<Vault> {
+export async function deployVault(
+  admin: SignerWithAddress,
+  maxEth: BigNumber,
+  feeTo: string,
+  feeAmount: BigNumber,
+): Promise<Vault> {
   const vaultArtifact: Artifact = await hre.artifacts.readArtifact('Vault');
-  return (await deployContract(admin, vaultArtifact, [fixedRate, maxEth])) as Vault;
+  return (await deployContract(admin, vaultArtifact, [maxEth, feeTo, feeAmount])) as Vault;
 }
 
 export async function deployVaultV2(admin: SignerWithAddress): Promise<VaultV2Mock> {
@@ -34,9 +39,16 @@ export async function deployPool(
   admin: SignerWithAddress,
   vault: Vault,
   token: ERC20,
+  fixedRate: BigNumber,
   override: boolean = false,
 ): Promise<Pool> {
-  await vault.deployPool(token.address, getSushiRewarder(token.address), getMasterChefPid(token.address), override);
+  await vault.deployPool(
+    token.address,
+    getSushiRewarder(token.address),
+    getMasterChefPid(token.address),
+    fixedRate,
+    override,
+  );
   const pool = await vault.tokenToPool(token.address);
   return Pool__factory.connect(pool, admin);
 }
