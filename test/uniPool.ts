@@ -1,32 +1,15 @@
 import { expect } from 'chai';
-import { ethers } from 'hardhat';
+import hre, { ethers } from 'hardhat';
 import { BigNumber } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
-import {
-  IMasterChef,
-  Vault,
-  ERC20,
-  IMasterChefV2,
-  Pool,
-  PoolV2Mock,
-  IWETH,
-  IERC20__factory,
-  IUniswapV2Router02__factory,
-} from '../typechain';
-import {
-  deployVault,
-  deployPool,
-  getERC20,
-  getTokens,
-  getMasterChef,
-  getMasterChefV2,
-  deployPoolV2,
-  getWETH,
-} from './utils';
-import { Addresses, Contracts, getMasterChefPid, getSushiRewarder, Tokens } from './constants';
+import { Vault, ERC20, PoolV2Mock, IWETH, IERC20__factory, IUniswapV2Router02__factory, UniPool } from '../typechain';
+import { deployVault, deployUniPool, getERC20, getTokens, deployPoolV2, getWETH } from './utils';
+import { Addresses, Contracts, Tokens } from './constants';
+import { Artifact } from 'hardhat/types';
+import { deployContract } from 'ethereum-waffle';
 
-describe('Rift Pool Unit tests', () => {
+describe('Rift Uniswap Pool Unit tests', () => {
   const fixedRate = BigNumber.from('10');
   const invalidFixedRate = BigNumber.from('2000');
 
@@ -42,11 +25,9 @@ describe('Rift Pool Unit tests', () => {
 
   let weth: IWETH;
   let token: ERC20;
-  let masterChef: IMasterChef;
-  let masterChefV2: IMasterChefV2;
 
   let vault: Vault;
-  let pool: Pool;
+  let pool: UniPool;
   let poolV2: PoolV2Mock;
 
   before(async () => {
@@ -57,15 +38,13 @@ describe('Rift Pool Unit tests', () => {
 
     // external contract setup
     weth = await getWETH();
-    masterChef = await getMasterChef();
-    masterChefV2 = await getMasterChefV2();
   });
 
   describe('Deployment', async () => {
     beforeEach(async () => {
       token = await getERC20(Tokens.aave);
       vault = await deployVault(admin, feeTo, feeAmount);
-      pool = await deployPool(admin, vault, token, fixedRate);
+      pool = await deployUniPool(admin, vault, token, fixedRate);
     });
 
     it('should correctly assign token metadata', async () => {
@@ -87,21 +66,14 @@ describe('Rift Pool Unit tests', () => {
     });
 
     it('should reject deployment with invalid fixed rate', async () => {
-      await expect(deployPool(admin, vault, token, invalidFixedRate, true)).to.be.revertedWith('Invalid fixed rate');
+      await expect(deployUniPool(admin, vault, token, invalidFixedRate, true)).to.be.revertedWith('Invalid fixed rate');
     });
 
-    it('should reject deployment with invalid sushi master chef pid', async () => {
-      token = await getERC20(Tokens.yfi);
+    it('should reject deployment with invalid weth', async () => {
+      const uniPoolArtifact: Artifact = await hre.artifacts.readArtifact('UniPool');
       await expect(
-        vault.deployPool(token.address, getSushiRewarder(token.address), 0, fixedRate, false),
-      ).to.be.revertedWith('invalid pid mapping');
-    });
-
-    it('should reject deployment with invalid sushi master chef v2 pid', async () => {
-      token = await getERC20(Tokens.alcx);
-      await expect(
-        vault.deployPool(token.address, getSushiRewarder(token.address), 1, fixedRate, false),
-      ).to.be.revertedWith('invalid pid mapping');
+        deployContract(admin, uniPoolArtifact, [vault.address, token.address, fixedRate, Addresses.zero]),
+      ).to.be.revertedWith('Invalid weth address');
     });
   });
 
@@ -109,7 +81,8 @@ describe('Rift Pool Unit tests', () => {
     beforeEach(async () => {
       token = await getERC20(Tokens.aave);
       vault = await deployVault(admin, feeTo, feeAmount);
-      pool = await deployPool(admin, vault, token, fixedRate);
+      pool = await deployUniPool(admin, vault, token, fixedRate);
+      await vault.registerPool(pool.address, false);
     });
 
     it('should reject withdraws', async () => {
@@ -140,11 +113,12 @@ describe('Rift Pool Unit tests', () => {
   });
 
   describe('Phase One', async () => {
-    describe('Basic Token, no sushi rewards', async () => {
+    describe('Basic Token', async () => {
       beforeEach(async () => {
         token = await getERC20(Tokens.aave);
         vault = await deployVault(admin, feeTo, feeAmount);
-        pool = await deployPool(admin, vault, token, fixedRate);
+        pool = await deployUniPool(admin, vault, token, fixedRate);
+        await vault.registerPool(pool.address, false);
 
         await getTokens(alice, token, tokenDepositAmount);
         await token.connect(alice).approve(pool.address, tokenDepositAmount);
@@ -192,9 +166,9 @@ describe('Rift Pool Unit tests', () => {
       it('should return sufficent token to cover fixed rate after trades', async () => {
         await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
         await getTokens(bob, token, tokenDepositAmount);
-        const sushiRouter = IUniswapV2Router02__factory.connect(Contracts.sushiRouter, bob);
-        await token.connect(bob).approve(sushiRouter.address, tokenDepositAmount);
-        await sushiRouter
+        const uniswapRouter = IUniswapV2Router02__factory.connect(Contracts.uniswapRouter, bob);
+        await token.connect(bob).approve(uniswapRouter.address, tokenDepositAmount);
+        await uniswapRouter
           .connect(bob)
           .swapExactTokensForTokens(tokenDepositAmount, 0, [token.address, weth.address], bob.address, 2000000000);
         await vault.unpairLiquidityPool(token.address, 1, 1);
@@ -205,11 +179,11 @@ describe('Rift Pool Unit tests', () => {
         await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
         const vaultWethBalance = await weth.balanceOf(vault.address);
 
-        const sushiRouter = IUniswapV2Router02__factory.connect(Contracts.sushiRouter, bob);
+        const uniswapRouter = IUniswapV2Router02__factory.connect(Contracts.uniswapRouter, bob);
         const wethTradeAmount = (await ethers.provider.getBalance(bob.address)).div(2);
         await weth.connect(bob).deposit({ value: wethTradeAmount });
-        await weth.connect(bob).approve(sushiRouter.address, wethTradeAmount);
-        await sushiRouter
+        await weth.connect(bob).approve(uniswapRouter.address, wethTradeAmount);
+        await uniswapRouter
           .connect(bob)
           .swapExactTokensForTokens(wethTradeAmount, 0, [weth.address, token.address], bob.address, 2000000000);
 
@@ -219,116 +193,14 @@ describe('Rift Pool Unit tests', () => {
         expect(await weth.balanceOf(pool.address)).to.eq(0);
       });
     });
-
-    describe('Token with Master Chef sushi rewards', async () => {
-      beforeEach(async () => {
-        token = await getERC20(Tokens.yfi);
-        vault = await deployVault(admin, feeTo, feeAmount);
-        pool = await deployPool(admin, vault, token, fixedRate);
-
-        await getTokens(alice, token, tokenDepositAmount);
-        await token.connect(alice).approve(pool.address, tokenDepositAmount);
-        await pool.connect(alice).depositToken(tokenDepositAmount);
-
-        await vault.connect(alice).depositEth({ value: ethDepositAmount });
-
-        await vault.nextPhase();
-        await vault.wrapEth();
-      });
-
-      it('should pair and update master chef balances for token-eth', async () => {
-        await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
-
-        const lpTokensReceived = await pool.lpTokenBalance();
-        const tokenInfo = await masterChef.userInfo(getMasterChefPid(token.address), pool.address);
-
-        expect(tokenInfo.amount).to.eq(lpTokensReceived);
-      });
-
-      it('should withdraw token-weth from master chef and return weth to vault', async () => {
-        await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
-        await vault.unpairLiquidityPool(token.address, 1, 1);
-
-        const tokenInfo = await masterChef.userInfo(getMasterChefPid(token.address), pool.address);
-        expect(tokenInfo.amount).to.eq(0);
-        expect(await weth.balanceOf(pool.address)).to.eq(0);
-      });
-    });
-
-    describe('Token with Master Chef V2 sushi rewards', async () => {
-      beforeEach(async () => {
-        token = await getERC20(Tokens.alcx);
-        vault = await deployVault(admin, feeTo, feeAmount);
-        pool = await deployPool(admin, vault, token, fixedRate);
-
-        await getTokens(alice, token, tokenDepositAmount);
-        await token.connect(alice).approve(pool.address, tokenDepositAmount);
-        await pool.connect(alice).depositToken(tokenDepositAmount);
-
-        await vault.connect(alice).depositEth({ value: ethDepositAmount });
-
-        await vault.nextPhase();
-        await vault.wrapEth();
-      });
-
-      it('should pair and update master chef v2 balances for token-eth', async () => {
-        await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
-
-        const lpTokensReceived = await pool.lpTokenBalance();
-        const tokenInfo = await masterChefV2.userInfo(getMasterChefPid(token.address), pool.address);
-
-        expect(tokenInfo.amount).to.eq(lpTokensReceived);
-      });
-
-      it('should withdraw token-weth from master chef v2 and return weth to vault', async () => {
-        await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
-        await vault.unpairLiquidityPool(token.address, 1, 1);
-
-        const tokenInfo = await masterChef.userInfo(getMasterChefPid(token.address), pool.address);
-        expect(tokenInfo.amount).to.eq(0);
-        expect(await weth.balanceOf(pool.address)).to.eq(0);
-      });
-    });
-
-    describe('Edge cases', async () => {
-      it('should make no swap if token amount returned is exactly the token amount deposited', async () => {
-        const fixedRateZero = BigNumber.from(0);
-        const tokenDepositMinimal = BigNumber.from(100);
-        token = await getERC20(Tokens.aave);
-        vault = await deployVault(admin, feeTo, feeAmount);
-        pool = await deployPool(admin, vault, token, fixedRateZero);
-
-        await getTokens(alice, token, tokenDepositMinimal);
-        await token.connect(alice).approve(pool.address, tokenDepositMinimal);
-        await pool.connect(alice).depositToken(tokenDepositMinimal);
-
-        await vault.connect(alice).depositEth({ value: ethDepositAmount });
-
-        await vault.nextPhase();
-        await vault.wrapEth();
-
-        await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositMinimal, 0, 0);
-
-        const sushiRouter = IUniswapV2Router02__factory.connect(Contracts.sushiRouter, bob);
-        const tokenTradeAmount = ethers.utils.parseEther('8000');
-        await getTokens(bob, token, tokenTradeAmount);
-        await token.connect(bob).approve(sushiRouter.address, tokenTradeAmount);
-        await sushiRouter
-          .connect(bob)
-          .swapExactTokensForTokens(tokenTradeAmount, 0, [token.address, weth.address], bob.address, 2000000000);
-
-        await vault.unpairLiquidityPool(token.address, 0, 0);
-        expect(await weth.balanceOf(pool.address)).to.eq(0);
-        expect(await token.balanceOf(pool.address)).to.eq(tokenDepositMinimal);
-      });
-    });
   });
 
   describe('Phase Two', async () => {
     beforeEach(async () => {
       token = await getERC20(Tokens.yfi);
       vault = await deployVault(admin, feeTo, feeAmount);
-      pool = await deployPool(admin, vault, token, fixedRate);
+      pool = await deployUniPool(admin, vault, token, fixedRate);
+      await vault.registerPool(pool.address, false);
 
       await getTokens(alice, token, tokenDepositAmount);
       await token.connect(alice).approve(pool.address, tokenDepositAmount);
@@ -355,11 +227,12 @@ describe('Rift Pool Unit tests', () => {
     });
 
     it('should allow users to withdraw their balance', async () => {
+      const aliceBalanceInitial = await token.balanceOf(alice.address);
       const tokenReturn = await token.balanceOf(pool.address);
       expect(tokenReturn).to.be.gt(tokenDepositAmount);
 
       await pool.connect(alice).withdrawToken(Addresses.zero);
-      expect(await token.balanceOf(alice.address)).to.eq(tokenReturn);
+      expect(await token.balanceOf(alice.address)).to.eq(aliceBalanceInitial.add(tokenReturn));
       expect(await pool.balanceOf(alice.address)).to.eq(0);
       expect(await token.balanceOf(pool.address)).to.eq(0);
     });
