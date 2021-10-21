@@ -66,7 +66,7 @@ describe('Rift Uniswap Pool Unit tests', () => {
     });
 
     it('should reject deployment with invalid fixed rate', async () => {
-      await expect(deployUniPool(admin, vault, token, invalidFixedRate, true)).to.be.revertedWith('Invalid fixed rate');
+      await expect(deployUniPool(admin, vault, token, invalidFixedRate)).to.be.revertedWith('Invalid fixed rate');
     });
 
     it('should reject deployment with invalid weth', async () => {

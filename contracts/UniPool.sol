@@ -54,7 +54,7 @@ contract UniPool is ERC20 {
     /// @param _vaultAddress address of the Rift Eth Vault
     /// @param _token address of the token that the Pool will accept
     /// @param _fixedRate the fixed rate that that will be returned to token depositors for this pool
-    /// @param _weth WETH9 address, validated by vault
+    /// @param _weth WETH9 address
     constructor(
         address _vaultAddress,
         address _token,
