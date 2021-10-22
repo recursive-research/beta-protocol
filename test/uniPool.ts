@@ -82,7 +82,7 @@ describe('Rift Uniswap Pool Unit tests', () => {
       token = await getERC20(Tokens.aave);
       vault = await deployVault(admin, feeTo, feeAmount);
       pool = await deployUniPool(admin, vault, token, fixedRate);
-      await vault.registerPool(pool.address, false);
+      await vault.registerPool(pool.address);
     });
 
     it('should reject withdraws', async () => {
@@ -118,7 +118,7 @@ describe('Rift Uniswap Pool Unit tests', () => {
         token = await getERC20(Tokens.aave);
         vault = await deployVault(admin, feeTo, feeAmount);
         pool = await deployUniPool(admin, vault, token, fixedRate);
-        await vault.registerPool(pool.address, false);
+        await vault.registerPool(pool.address);
 
         await getTokens(alice, token, tokenDepositAmount);
         await token.connect(alice).approve(pool.address, tokenDepositAmount);
@@ -147,7 +147,7 @@ describe('Rift Uniswap Pool Unit tests', () => {
       });
 
       it('should pair LP tokens for token-eth', async () => {
-        await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
+        await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1);
         const pair = IERC20__factory.connect(await pool.pair(), ethers.provider);
         const lpTokensReceived = await pool.lpTokenBalance();
 
@@ -156,27 +156,27 @@ describe('Rift Uniswap Pool Unit tests', () => {
 
       it('should withdraw token-weth and return weth to vault', async () => {
         const pair = IERC20__factory.connect(await pool.pair(), ethers.provider);
-        await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
-        await vault.unpairLiquidityPool(token.address, 1, 1);
+        await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1);
+        await vault.unpairLiquidityPool(pool.address, 1, 1);
 
         expect(await pair.balanceOf(pool.address)).to.eq(0);
         expect(await weth.balanceOf(pool.address)).to.eq(0);
       });
 
       it('should return sufficent token to cover fixed rate after trades', async () => {
-        await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
+        await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1);
         await getTokens(bob, token, tokenDepositAmount);
         const uniswapRouter = IUniswapV2Router02__factory.connect(Contracts.uniswapRouter, bob);
         await token.connect(bob).approve(uniswapRouter.address, tokenDepositAmount);
         await uniswapRouter
           .connect(bob)
           .swapExactTokensForTokens(tokenDepositAmount, 0, [token.address, weth.address], bob.address, 2000000000);
-        await vault.unpairLiquidityPool(token.address, 1, 1);
+        await vault.unpairLiquidityPool(pool.address, 1, 1);
         expect(await weth.balanceOf(pool.address)).to.eq(0);
       });
 
       it('should swap weth for token when fixed rate is greater than returns', async () => {
-        await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
+        await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1);
         const vaultWethBalance = await weth.balanceOf(vault.address);
 
         const uniswapRouter = IUniswapV2Router02__factory.connect(Contracts.uniswapRouter, bob);
@@ -187,7 +187,7 @@ describe('Rift Uniswap Pool Unit tests', () => {
           .connect(bob)
           .swapExactTokensForTokens(wethTradeAmount, 0, [weth.address, token.address], bob.address, 2000000000);
 
-        await vault.unpairLiquidityPool(token.address, 1, 1);
+        await vault.unpairLiquidityPool(pool.address, 1, 1);
 
         expect(await weth.balanceOf(vault.address)).to.eq(vaultWethBalance); // should be no more weth than initial
         expect(await weth.balanceOf(pool.address)).to.eq(0);
@@ -200,7 +200,7 @@ describe('Rift Uniswap Pool Unit tests', () => {
       token = await getERC20(Tokens.yfi);
       vault = await deployVault(admin, feeTo, feeAmount);
       pool = await deployUniPool(admin, vault, token, fixedRate);
-      await vault.registerPool(pool.address, false);
+      await vault.registerPool(pool.address);
 
       await getTokens(alice, token, tokenDepositAmount);
       await token.connect(alice).approve(pool.address, tokenDepositAmount);
@@ -211,8 +211,8 @@ describe('Rift Uniswap Pool Unit tests', () => {
       await vault.nextPhase();
       await vault.wrapEth();
 
-      await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
-      await vault.unpairLiquidityPool(token.address, 1, 1);
+      await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1);
+      await vault.unpairLiquidityPool(pool.address, 1, 1);
 
       await vault.nextPhase();
       await vault.unwrapEth();

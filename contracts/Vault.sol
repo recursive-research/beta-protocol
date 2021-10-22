@@ -16,7 +16,7 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     /// @notice fee out of 1000 on profits
     uint256 public feeAmount;
 
-    mapping(address => address) public tokenToPool;
+    mapping(address => address) public poolToToken;
 
     /// @notice the Vault has 3 Phases, and actions are restricted based on which Phase it's in.
     enum Phases {
@@ -116,50 +116,48 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
 
     /// @notice registers a pool.
     /// @param _pool address of the pool being registered
-    /// @param _override allows the owner to redeploy a pool for a token that already has a pool. For example,
-    /// if the DAO wanted to deploy a Sushi pool, but later decides it prefers a Uni pool.
-    function registerPool(address _pool, bool _override) external onlyOwner {
+    function registerPool(address _pool) external onlyOwner {
+        require(_pool != address(0), 'Invalid pool');
+        require(poolToToken[_pool] == address(0), 'Already registered');
         address token = IPool(_pool).token();
-        require(tokenToPool[token] == address(0) || _override, 'Already registered');
-        tokenToPool[token] = _pool;
+        poolToToken[_pool] = token;
     }
 
     /// @notice called by the contract owner during Phase One, sending WETH to a Pool and
     /// instructing the Pool to deploy the liquidity. Expected to be called on various pools.
     /// Min amounts should be set by the Owner to prevent frontrunning.
-    /// @param _token address of the token to whose pool liquidity is being deployed
+    /// @param _pool address of the pool to which liquidity is being deployed.
+    /// if registered, already checked that != zero address
     /// @param _amountWeth amount of WETH to deploy to _pool
     /// @param _amountToken the desired amount of token to add as liquidity in the Pool
     /// @param _minAmountWeth the minimum amount of WETH to deposit
     /// @param _minAmountToken the minimum amount of token to deposit
     function pairLiquidityPool(
-        address _token,
+        address _pool,
         uint256 _amountWeth,
         uint256 _amountToken,
         uint256 _minAmountWeth,
         uint256 _minAmountToken
     ) external onlyOwner duringPhase(Phases.One) {
-        address pool = tokenToPool[_token];
-        require(pool != address(0), 'Invalid token');
-        IWETH(WETH).transfer(pool, _amountWeth);
-        uint256 wethDeployed = IPool(pool).pairLiquidity(_amountWeth, _amountToken, _minAmountWeth, _minAmountToken);
-        emit LiquidityDeployed(pool, wethDeployed);
+        require(poolToToken[_pool] != address(0), 'Invalid pool');
+        IWETH(WETH).transfer(_pool, _amountWeth);
+        uint256 wethDeployed = IPool(_pool).pairLiquidity(_amountWeth, _amountToken, _minAmountWeth, _minAmountToken);
+        emit LiquidityDeployed(_pool, wethDeployed);
     }
 
     /// @notice called by the contract owner at the end of Phase One, unwinding the deployed liquidity
     /// and receiving WETH. Min amounts should be set by the Owner to prevent frontrunning.
-    /// @param _token the token whose pool to remove liquidity from
+    /// @param _pool the pool to remove liquidity from
     /// @param _minAmountWeth the minimum amount of WETH to deposit
     /// @param _minAmountToken the minimum amount of token to deposit
     function unpairLiquidityPool(
-        address _token,
+        address _pool,
         uint256 _minAmountWeth,
         uint256 _minAmountToken
     ) external onlyOwner duringPhase(Phases.One) {
-        address pool = tokenToPool[_token];
-        require(pool != address(0), 'Invalid token');
-        IPool(pool).unpairLiquidity(_minAmountWeth, _minAmountToken);
-        emit LiquidityReturned(pool);
+        require(poolToToken[_pool] != address(0), 'Invalid pool');
+        IPool(_pool).unpairLiquidity(_minAmountWeth, _minAmountToken);
+        emit LiquidityReturned(_pool);
     }
 
     /// @notice allows the Vault owner to move the Vault into its next phase

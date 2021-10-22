@@ -59,21 +59,17 @@ describe('Rift Vault Unit tests', () => {
     });
 
     it('should allow pool registration', async () => {
-      await vault.registerPool(pool.address, false);
-      expect(await vault.tokenToPool(token.address)).to.eq(pool.address);
+      await vault.registerPool(pool.address);
+      expect(await vault.poolToToken(pool.address)).to.eq(token.address);
     });
 
-    it('should reject pool registration of already valid token', async () => {
-      await vault.registerPool(pool.address, false);
-      const newPool = await deploySushiPool(admin, vault, token, fixedRate);
-      await expect(vault.registerPool(newPool.address, false)).to.be.revertedWith('Already registered');
+    it('should reject pool registration of already valid pool', async () => {
+      await vault.registerPool(pool.address);
+      await expect(vault.registerPool(pool.address)).to.be.revertedWith('Already registered');
     });
 
-    it('should allow owner to override pool registration', async () => {
-      await vault.registerPool(pool.address, false);
-      const newPool = await deploySushiPool(admin, vault, token, fixedRate);
-      await vault.registerPool(newPool.address, true);
-      expect(await vault.tokenToPool(token.address)).to.eq(newPool.address);
+    it('should reject pool registration of zero address', async () => {
+      await expect(vault.registerPool(Addresses.zero)).to.be.revertedWith('Invalid pool');
     });
 
     it('should correctly assign erc20 metadata', async () => {
@@ -122,17 +118,17 @@ describe('Rift Vault Unit tests', () => {
     beforeEach(async () => {
       vault = await deployVault(admin, feeTo, feeAmount);
       pool = await deploySushiPool(admin, vault, token, fixedRate);
-      await vault.registerPool(pool.address, false);
+      await vault.registerPool(pool.address);
     });
 
     it('should reject pairLiquidityPool call', async () => {
       await expect(
-        vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 0, 0),
+        vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 0, 0),
       ).to.be.revertedWith('Invalid Phase function');
     });
 
     it('should reject unpairLiquidityPool call', async () => {
-      await expect(vault.unpairLiquidityPool(token.address, 0, 0)).to.be.revertedWith('Invalid Phase function');
+      await expect(vault.unpairLiquidityPool(pool.address, 0, 0)).to.be.revertedWith('Invalid Phase function');
     });
 
     it('should allow owner to move to phase 1', async () => {
@@ -188,7 +184,7 @@ describe('Rift Vault Unit tests', () => {
     beforeEach(async () => {
       vault = await deployVault(admin, feeTo, feeAmount);
       pool = await deploySushiPool(admin, vault, token, fixedRate);
-      await vault.registerPool(pool.address, false);
+      await vault.registerPool(pool.address);
 
       await vault.connect(alice).depositEth({ value: ethDepositAmount });
       await getTokens(alice, token, tokenDepositAmount);
@@ -231,26 +227,28 @@ describe('Rift Vault Unit tests', () => {
         await vault.wrapEth();
       });
 
-      it('should reject pairLiquidityPool call for token without a pool', async () => {
-        await expect(vault.pairLiquidityPool(weth.address, 0, 0, 0, 0)).to.be.revertedWith('Invalid token');
+      it('should reject pairLiquidity call for unregistered pool', async () => {
+        const newPool = await deploySushiPool(admin, vault, token, fixedRate);
+
+        await expect(vault.pairLiquidityPool(newPool.address, 1, 1, 0, 0)).to.be.revertedWith('Invalid pool');
       });
 
       it('should reject pairLiquidityPool calls from non owner', async () => {
         await expect(
-          vault.connect(alice).pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 0, 0),
+          vault.connect(alice).pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 0, 0),
         ).to.be.revertedWith('Ownable: caller is not the owner');
       });
 
       it('should allow owner to call pairLiquidityPool', async () => {
         expect(await weth.balanceOf(vault.address)).to.eq(ethDepositAmount);
 
-        await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
+        await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1);
 
         expect(await weth.balanceOf(vault.address)).to.eq(0);
       });
 
       it('should emit event when owner calls pairLiquidityPool', async () => {
-        await expect(vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1))
+        await expect(vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1))
           .to.emit(vault, 'LiquidityDeployed')
           .withArgs(pool.address, ethDepositAmount);
       });
@@ -259,29 +257,30 @@ describe('Rift Vault Unit tests', () => {
     describe('withdrawing liquidity', async () => {
       beforeEach(async () => {
         await vault.wrapEth();
-        await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
+        await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1);
       });
 
       it('should reject unpairLiquidityPool calls from non owner', async () => {
-        await expect(vault.connect(alice).unpairLiquidityPool(token.address, 1, 1)).to.be.revertedWith(
+        await expect(vault.connect(alice).unpairLiquidityPool(pool.address, 1, 1)).to.be.revertedWith(
           'Ownable: caller is not the owner',
         );
       });
 
-      it('should reject unpairLiquidityPool call for token without a pool', async () => {
-        await expect(vault.unpairLiquidityPool(weth.address, 0, 0)).to.be.revertedWith('Invalid token');
+      it('should reject unpairLiquidityPool call for unregistered pool', async () => {
+        const newPool = await deploySushiPool(admin, vault, token, fixedRate);
+        await expect(vault.unpairLiquidityPool(newPool.address, 0, 0)).to.be.revertedWith('Invalid pool');
       });
 
       it('should allow owner to unpairLiquidityPool', async () => {
         expect(await weth.balanceOf(vault.address)).to.eq(0);
 
-        await vault.unpairLiquidityPool(token.address, 1, 1);
+        await vault.unpairLiquidityPool(pool.address, 1, 1);
 
         expect(await weth.balanceOf(vault.address)).to.be.gt(ethDepositAmount);
       });
 
       it('should emit event on unpairLiquidityPool call', async () => {
-        await expect(vault.unpairLiquidityPool(token.address, 1, 1))
+        await expect(vault.unpairLiquidityPool(pool.address, 1, 1))
           .to.emit(vault, 'LiquidityReturned')
           .withArgs(pool.address);
       });
@@ -290,8 +289,8 @@ describe('Rift Vault Unit tests', () => {
     describe('ending phase 1', async () => {
       beforeEach(async () => {
         await vault.wrapEth();
-        await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
-        await vault.unpairLiquidityPool(token.address, 1, 1);
+        await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1);
+        await vault.unpairLiquidityPool(pool.address, 1, 1);
       });
 
       it('should reject unwrapEth calls from non owner', async () => {
@@ -319,7 +318,7 @@ describe('Rift Vault Unit tests', () => {
     beforeEach(async () => {
       vault = await deployVault(admin, feeTo, feeAmount);
       pool = await deploySushiPool(admin, vault, token, fixedRate);
-      await vault.registerPool(pool.address, false);
+      await vault.registerPool(pool.address);
 
       await vault.connect(alice).depositEth({ value: ethDepositAmount });
       await getTokens(alice, token, tokenDepositAmount);
@@ -329,8 +328,8 @@ describe('Rift Vault Unit tests', () => {
       await vault.nextPhase();
 
       await vault.wrapEth();
-      await vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 1, 1);
-      await vault.unpairLiquidityPool(token.address, 1, 1);
+      await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1);
+      await vault.unpairLiquidityPool(pool.address, 1, 1);
       await vault.unwrapEth();
 
       await vault.nextPhase();
@@ -338,12 +337,12 @@ describe('Rift Vault Unit tests', () => {
 
     it('should reject pairLiquidityPool call', async () => {
       await expect(
-        vault.pairLiquidityPool(token.address, ethDepositAmount, tokenDepositAmount, 0, 0),
+        vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 0, 0),
       ).to.be.revertedWith('Invalid Phase function');
     });
 
     it('should reject unpairLiquidityPool call', async () => {
-      await expect(vault.unpairLiquidityPool(token.address, 0, 0)).to.be.revertedWith('Invalid Phase function');
+      await expect(vault.unpairLiquidityPool(pool.address, 0, 0)).to.be.revertedWith('Invalid Phase function');
     });
 
     it('should reject users depositing ETH', async () => {
