@@ -30,7 +30,7 @@ contract UniPool is ERC20 {
 
     /// @notice Uniswap pair for this token <> WETH
     address public pair;
-    /// @notice tracks the intitial WETH deposit amount, so the Pool can calculate how much must be returned
+    /// @notice tracks the intitial token deposit amount, so the Pool can calculate how much must be returned
     uint256 public tokenPrincipalAmount;
     /// @notice the Uni LP tokens received after the pool adds liquidity
     uint256 public lpTokenBalance;
