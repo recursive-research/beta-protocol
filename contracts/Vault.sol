@@ -2,9 +2,9 @@
 pragma solidity 0.8.6;
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
-import './interfaces/IPool.sol';
 import './interfaces/IVaultV2.sol';
 import './interfaces/IWETH.sol';
+import './Pool.sol';
 
 /// @title Rift V1 Eth Vault
 /// @notice allows users to deposit eth, which will deployed to various pools to earn a return during a period.
@@ -71,6 +71,25 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
         WETH = _weth;
     }
 
+    /// @notice allows the vault owner to deploy a new pool
+    /// @param _token deploy a pool for this token
+    /// @param _sushiRewarder how SLP tokens receive staking rewards. See pool contract
+    /// @param _pid the sushiswap pool ID in the relevant sushi rewarder. See pool contract
+    /// @param _fixedRate the fixed rate that the pool will return to token depositors
+    /// @param _override allows owner to deploy new pool if sushi rewarder or pid should
+    /// be updated
+    function deployPool(
+        address _token,
+        uint256 _sushiRewarder,
+        uint256 _pid,
+        uint256 _fixedRate,
+        bool _override
+    ) external onlyOwner {
+        require(tokenToPool[_token] == address(0) || _override, 'Tokens already deployed');
+        address newPool = address(new Pool(address(this), _token, _sushiRewarder, _pid, _fixedRate, WETH));
+        tokenToPool[_token] = newPool;
+    }
+
     /// @notice allows users to deposit ETH during Phase zero and receive a staking token 1:1
     function depositEth() external payable duringPhase(Phases.Zero) {
         _mint(msg.sender, msg.value);
@@ -114,16 +133,6 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
         }
     }
 
-    /// @notice registers a pool.
-    /// @param _pool address of the pool being registered
-    /// @param _override allows the owner to redeploy a pool for a token that already has a pool. For example,
-    /// if the DAO wanted to deploy a Sushi pool, but later decides it prefers a Uni pool.
-    function registerPool(address _pool, bool _override) external onlyOwner {
-        address token = IPool(_pool).token();
-        require(tokenToPool[token] == address(0) || _override, 'Already registered');
-        tokenToPool[token] = _pool;
-    }
-
     /// @notice called by the contract owner during Phase One, sending WETH to a Pool and
     /// instructing the Pool to deploy the liquidity. Expected to be called on various pools.
     /// Min amounts should be set by the Owner to prevent frontrunning.
@@ -142,7 +151,7 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
         address pool = tokenToPool[_token];
         require(pool != address(0), 'Invalid token');
         IWETH(WETH).transfer(pool, _amountWeth);
-        uint256 wethDeployed = IPool(pool).pairLiquidity(_amountWeth, _amountToken, _minAmountWeth, _minAmountToken);
+        uint256 wethDeployed = Pool(pool).pairLiquidity(_amountWeth, _amountToken, _minAmountWeth, _minAmountToken);
         emit LiquidityDeployed(pool, wethDeployed);
     }
 
@@ -158,7 +167,7 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     ) external onlyOwner duringPhase(Phases.One) {
         address pool = tokenToPool[_token];
         require(pool != address(0), 'Invalid token');
-        IPool(pool).unpairLiquidity(_minAmountWeth, _minAmountToken);
+        Pool(pool).unpairLiquidity(_minAmountWeth, _minAmountToken);
         emit LiquidityReturned(pool);
     }
 

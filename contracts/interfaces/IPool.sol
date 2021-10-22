@@ -2,8 +2,6 @@
 pragma solidity 0.8.6;
 
 interface IPool {
-    function token() external view returns (address);
-
     function pairLiquidity(
         uint256 _amountWeth,
         uint256 _amountToken,

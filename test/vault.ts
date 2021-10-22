@@ -3,8 +3,8 @@ import { BigNumber } from 'ethers';
 import hre, { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
-import { deploySushiPool, deployVault, deployVaultV2, getERC20, getTokens, getWETH } from './utils';
-import { Vault, ERC20, IWETH, VaultV2Mock, SushiPool } from '../typechain';
+import { deployPool, deployVault, deployVaultV2, getERC20, getTokens, getWETH } from './utils';
+import { Vault, ERC20, Pool, IWETH, VaultV2Mock } from '../typechain';
 import { Addresses, Tokens } from './constants';
 import { Artifact } from 'hardhat/types';
 import { deployContract } from 'ethereum-waffle';
@@ -32,7 +32,7 @@ describe('Rift Vault Unit tests', () => {
   let weth: IWETH;
 
   let vault: Vault;
-  let pool: SushiPool;
+  let pool: Pool;
   let vaultV2: VaultV2Mock;
 
   before(async () => {
@@ -48,7 +48,7 @@ describe('Rift Vault Unit tests', () => {
   describe('Deployment', async () => {
     beforeEach(async () => {
       vault = await deployVault(admin, feeTo, feeAmount);
-      pool = await deploySushiPool(admin, vault, token, fixedRate);
+      pool = await deployPool(admin, vault, token, fixedRate);
     });
 
     it('should reject deployment with invalid weth address', async () => {
@@ -56,24 +56,6 @@ describe('Rift Vault Unit tests', () => {
       await expect(deployContract(admin, vaultArtifact, [feeTo, feeAmount, Addresses.zero])).to.be.revertedWith(
         'Invalid weth',
       );
-    });
-
-    it('should allow pool registration', async () => {
-      await vault.registerPool(pool.address, false);
-      expect(await vault.tokenToPool(token.address)).to.eq(pool.address);
-    });
-
-    it('should reject pool registration of already valid token', async () => {
-      await vault.registerPool(pool.address, false);
-      const newPool = await deploySushiPool(admin, vault, token, fixedRate);
-      await expect(vault.registerPool(newPool.address, false)).to.be.revertedWith('Already registered');
-    });
-
-    it('should allow owner to override pool registration', async () => {
-      await vault.registerPool(pool.address, false);
-      const newPool = await deploySushiPool(admin, vault, token, fixedRate);
-      await vault.registerPool(newPool.address, true);
-      expect(await vault.tokenToPool(token.address)).to.eq(newPool.address);
     });
 
     it('should correctly assign erc20 metadata', async () => {
@@ -87,6 +69,12 @@ describe('Rift Vault Unit tests', () => {
 
     it('should be in phase zero on initialization', async () => {
       expect(await vault.phase()).to.eq(0);
+    });
+
+    it('should reject pool deployment from non owner', async () => {
+      await expect(vault.connect(alice).deployPool(token.address, 0, 0, fixedRate, false)).to.be.revertedWith(
+        'Ownable: caller is not the owner',
+      );
     });
 
     it('should reject feeTo update from non owner', async () => {
@@ -121,8 +109,7 @@ describe('Rift Vault Unit tests', () => {
   describe('Phase 0', async () => {
     beforeEach(async () => {
       vault = await deployVault(admin, feeTo, feeAmount);
-      pool = await deploySushiPool(admin, vault, token, fixedRate);
-      await vault.registerPool(pool.address, false);
+      pool = await deployPool(admin, vault, token, fixedRate);
     });
 
     it('should reject pairLiquidityPool call', async () => {
@@ -138,6 +125,15 @@ describe('Rift Vault Unit tests', () => {
     it('should allow owner to move to phase 1', async () => {
       await vault.nextPhase();
       expect(await vault.phase()).to.eq(1);
+    });
+
+    it('should reject new pool deployment for the same token', async () => {
+      await expect(deployPool(admin, vault, token, fixedRate)).to.be.revertedWith('Tokens already deployed');
+    });
+
+    it('should allow owner to override with new pool', async () => {
+      pool = await deployPool(admin, vault, token, fixedRate, true);
+      expect(await vault.tokenToPool(token.address)).to.eq(pool.address);
     });
 
     it('should mint user tokens on ETH deposit', async () => {
@@ -187,8 +183,7 @@ describe('Rift Vault Unit tests', () => {
   describe('Phase 1', async () => {
     beforeEach(async () => {
       vault = await deployVault(admin, feeTo, feeAmount);
-      pool = await deploySushiPool(admin, vault, token, fixedRate);
-      await vault.registerPool(pool.address, false);
+      pool = await deployPool(admin, vault, token, fixedRate);
 
       await vault.connect(alice).depositEth({ value: ethDepositAmount });
       await getTokens(alice, token, tokenDepositAmount);
@@ -318,8 +313,7 @@ describe('Rift Vault Unit tests', () => {
   describe('Phase Two', async () => {
     beforeEach(async () => {
       vault = await deployVault(admin, feeTo, feeAmount);
-      pool = await deploySushiPool(admin, vault, token, fixedRate);
-      await vault.registerPool(pool.address, false);
+      pool = await deployPool(admin, vault, token, fixedRate);
 
       await vault.connect(alice).depositEth({ value: ethDepositAmount });
       await getTokens(alice, token, tokenDepositAmount);

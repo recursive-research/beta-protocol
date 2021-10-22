@@ -9,12 +9,12 @@ import {
   IMasterChefV2,
   Vault,
   VaultV2Mock,
+  Pool,
   PoolV2Mock,
   IWETH,
   StableVault,
   StableVaultV2Mock,
-  SushiPool,
-  UniPool,
+  Pool__factory,
 } from '../typechain';
 import { deployContract } from 'ethereum-waffle';
 import { Contracts, getMasterChefPid, getSushiRewarder, getWhale, Tokens } from './constants';
@@ -30,36 +30,22 @@ export async function deployVaultV2(admin: SignerWithAddress): Promise<VaultV2Mo
   return (await deployContract(admin, vaultArtifact)) as VaultV2Mock;
 }
 
-export async function deploySushiPool(
+export async function deployPool(
   admin: SignerWithAddress,
   vault: Vault,
   token: ERC20,
   fixedRate: BigNumber,
-): Promise<SushiPool> {
-  const sushiPoolArtifact: Artifact = await hre.artifacts.readArtifact('SushiPool');
-  return (await deployContract(admin, sushiPoolArtifact, [
-    vault.address,
+  override: boolean = false,
+): Promise<Pool> {
+  await vault.deployPool(
     token.address,
     getSushiRewarder(token.address),
     getMasterChefPid(token.address),
     fixedRate,
-    Tokens.weth,
-  ])) as SushiPool;
-}
-
-export async function deployUniPool(
-  admin: SignerWithAddress,
-  vault: Vault,
-  token: ERC20,
-  fixedRate: BigNumber,
-): Promise<UniPool> {
-  const uniPoolArtifact: Artifact = await hre.artifacts.readArtifact('UniPool');
-  return (await deployContract(admin, uniPoolArtifact, [
-    vault.address,
-    token.address,
-    fixedRate,
-    Tokens.weth,
-  ])) as UniPool;
+    override,
+  );
+  const pool = await vault.tokenToPool(token.address);
+  return Pool__factory.connect(pool, admin);
 }
 
 export async function deployPoolV2(admin: SignerWithAddress, address: string): Promise<PoolV2Mock> {

@@ -1,30 +1,25 @@
 # rift-contracts
 
-These are Rift's V1 contracts and they consist of 2 separate products. The first product consists of the contracts in `Vault.sol`, `SushiPool.sol`, and `UniPool.sol`. The second product consists of the contracts in `StableVault.sol` and `StableVaultToken.sol`.
+These are Rift's V1 contracts and they consist of 2 separate products. The first product consists of the contracts in `Vault.sol` and `Pool.sol`. The second product consists of the contracts in `StableVault.sol` and `StableVaultToken.sol`.
 
-## `Vault`, `SushiPool`, `UniPool`
+## `Vault` and `Pool`
 
 These contracts work together over a period of 3 phases, and users can only execute certain actions during each phase. The Vault contract is `Ownable`, inheriting the standard contract from OpenZeppelin. In V1, the Vault contract owner is assumed to be a benevolent party.
 
 #### Phase Zero
 
-Upon deployment, the `Vault` is in Phase Zero. Note that each `Pool`'s functionality is also restricted based on the current phase of the `Vault`.
+Upon deployment, the `Vault` is in Phase Zero. Note that the `Pool`'s functionality is also restricted based on the current phase of the `Vault`.
 
 The Vault deployer sets the `feeTo`, `feeAmount`, and `WETH` state variables on deployment. `feeTo` is the address to which the protocol fee will be sent. `feeAmount` is the amount (out of 1000) that will be claimed as a protocol fee on profits from ETH depositors. `WETH` is the address of the WETH9 contract.
 
-After deployment, new pools can be deployed for `Uniswap` or `Sushiswap`. The `UniPool` and `SushiPools` share the same functionality, besides using their respective AMMs under the hood. The vault owner will be able to register new pools by calling `registerPool`. Each pool is deployed with a few important arguments:
+After deployment, the vault owner will be able to deploy new pools by calling `deployPool`. This creates a new `Pool` instance for a `token`. Each pool is deployed with a few important arguments:
 
 - `token`: the token that can be deposited into this Pool.
-- `fixedRate`: the fixed rate that will be paid to `token` depositors in this pool
-
-If it is a `SushiPool`, it also accepts:
-
 - `pid`: this is the pool ID for the token's SushiSwap pool.
 - `sushiRewarder`: indicator how this token's SushiSwap pool receives Sushi rewards. Can be `MasterChef`, `MasterChefV2`, or `None`.
+- `fixedRate`: the fixed rate that will be paid to `token` depositors in this pool
 
-`_vaultAddress` and `_weth` are also set on deployment, and track the address of the `Vault` contract, and that of WETH9.
-
-The Vault doesn't allow new pools to be registered for a token that already has a pool. However, in the case that a new pool must be deployed, the owner can override this check and register a new pool with the updated config.
+The Vault doesn't allow new pools to be deployed for a token that already has a pool. However, in the case that a new pool must be deployed, the owner can override this check and deploy a new pool with the updated config.
 
 During phase zero, users can deposit `ETH` or `WETH` into the Vault (using the `depositEth` or `depositWeth` functions). In return for their deposit, user receive an equivalent amount of the Vault's staking token. These deposits are not withdrawable until Phase Two.
 
@@ -38,11 +33,11 @@ Now there is some amount of `ETH`/`WETH` sitting in the Vault contract, and some
 
 At the beginning of Phase One, the contract owner will wrap all `ETH` deposits into `WETH` by calling `wrapEth`. The Vault will then have X amount of `WETH` that is ready to be deployed.
 
-The owner will now call `pairLiquidityPool` with the following arguments: the token to pair with, the amounts of `WETH` and `token` to deposit into the Sushi pool, and the minimum amounts of Weth and Token to deposit into Sushiswap or Uniswap (to prevent frontrunning). The Vault transfers that amount of `WETH` to the Pool for the relevant token, and calls `pairLiquidity` on that Pool. When `pairLiquidity` is called, the Pool then pairs the received `WETH` with the tokens that were deposited into the Pool during Phase Zero, and adds liquidity to the SushiSwap or Uniswap pool for the `WETH` / `token` pair. It receives the pair's staking tokens, and depending on the token, stakes them either into the `MasterChef`, `MasterChefV2`, or does nothing if the token is ineligible for sushi rewards, or if it is a `UniPool`. If the amount of `WETH` added to the Sushi/Uni pool is less than the initial amount sent by the Vault, the pool sends back any excess.
+The owner will now call `pairLiquidityPool` with the following arguments: the token to pair with, the amounts of `WETH` and `token` to deposit into the Sushi pool, and the minimum amounts of Weth and Token to deposit into SushiSwap (to prevent frontrunning). The Vault transfers that amount of `WETH` to the Pool for the relevant token, and calls `pairLiquidity` on that Pool. When `pairLiquidity` is called, the Pool then pairs the received `WETH` with the tokens that were deposited into the Pool during Phase Zero, and adds liquidity to the SushiSwap pool for the `WETH` / `token` pair. It receives the SLP staking tokens, and depending on the token, stakes them either into the `MasterChef`, `MasterChefV2`, or does nothing if the token is ineligible for sushi rewards. If the amount of `WETH` added to the SushiSwap pool is less than the initial amount sent by the Vault, the pool sends back any excess.
 
 The Vault owner calls this `pairLiquidity` function on several pools. The deployed liquidity will stay in these pools for a period of time to generate a return from LP-ing.
 
-At the end of the desired period, the Vault owner will unwind the liquidty that had been deployed by calling `unpairLiquidity` on each pool. The caller can set minimum amounts to receive from withdraw, to prevent frontrunning. Each pool responds by unwinding the LP tokens from the `MasterChef` or `MasterChefV2` (if a `SushiPool`) (or do nothing if a `UniPool` or not eligible for Sushi rewards), and converting the received `SUSHI` tokens into `WETH`. The Pool then withdraws its liquidity from the Sushiswap/Uniswap pool, and receives some amount of `WETH` and `token`. The Pool then calculates how much `token` is owed back to the Pool's depositors based on the Pool's fixed APY, the initial amount of `token` principal deposited into Sushiswap/Uniswap, and the timestamps of deposit and withdraw. If there is enough `token` received to pay back the fixed rate, the Pool swaps any remaining `token` for `WETH` and sends all the `WETH` back to the Vault. If there is not enough `token` to pay back the fixed rate, the Pool swaps as much `WETH` as is needed to pay back the owed amount of `token`. In extreme cases, there may not be enough `WETH` to pay back the owed `token`, and the Pool will swap all of its remaining `WETH` for `token`, and pay back as much `token` as is possible.
+At the end of the desired period, the Vault owner will unwind the liquidty that had been deployed by calling `unpairLiquidity` on each pool. The caller can set minimum amounts to receive from withdraw, to prevent frontrunning. Each pool responds by unwinding the staked SLP tokens from the `MasterChef` or `MasterChefV2` (or do nothing if not eligible), and converting the received `SUSHI` tokens into `WETH`. The Pool then withdraws its liquidity from the SushiSwap pool, and receives some amount of `WETH` and `token`. The Pool then calculates how much `token` is owed back to the Pool's depositors based on the Pool's fixed APY, the initial amount of `token` principal deposited into Sushiswap, and the timestamps of deposit and withdraw. If there is enough `token` received to pay back the fixed rate, the Pool swaps any remaining `token` for `WETH` and sends all the `WETH` back to the Vault. If there is not enough `token` to pay back the fixed rate, the Pool swaps as much `WETH` as is needed to pay back the owed amount of `token`. In extreme cases, there may not be enough `WETH` to pay back the owed `token`, and the Pool will swap all of its remaining `WETH` for `token`, and pay back as much `token` as is possible.
 
 The Vault owner does this for each Pool that it deployed liquidity to at the beginning of this phase. After the Vault has recalled its liquidity from each Pool, the Vault owner will call `unwrapEth` to convert all `WETH` into `ETH`. The Vault contract now has some amount of `ETH`, and each pool has some amount of `token`.
 
