@@ -14,6 +14,7 @@ export const Contracts = {
   masterChef: '0xc2EdaD668740f1aA35E4D8f227fB8E17dcA888Cd',
   masterChefV2: '0xEF0881eC094552b2e128Cf945EF17a6752B4Ec5d',
   sushiRouter: '0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F',
+  uniswapRouter: '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D',
 };
 
 export const Addresses = {

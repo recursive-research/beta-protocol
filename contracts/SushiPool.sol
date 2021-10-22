@@ -12,9 +12,9 @@ import './interfaces/IVault.sol';
 import './interfaces/IWETH.sol';
 import './libraries/SushiSwapLibrary.sol';
 
-/// @title Rift V1 Pool
+/// @title Rift V1 Sushi Pool
 /// @notice allows users to deposit an ERC token that will be paired with ETH and deployed to a Sushiswap pool.
-contract Pool is ERC20 {
+contract SushiPool is ERC20 {
     using SafeERC20 for IERC20;
 
     /// @notice addresses for various contracts that the Pool will interact with
@@ -37,7 +37,7 @@ contract Pool is ERC20 {
 
     /// @notice Sushiswap pair for this token <> WETH
     address public pair;
-    /// @notice tracks the intitial WETH deposit amount, so the Pool can calculate how much must be returned
+    /// @notice tracks the intitial token deposit amount, so the Pool can calculate how much must be returned
     uint256 public tokenPrincipalAmount;
     /// @notice the SLP tokens received after the pool adds liquidity
     uint256 public lpTokenBalance;
@@ -71,7 +71,7 @@ contract Pool is ERC20 {
     /// @param _sushiRewarder how the SLP tokens receive staking rewards - MasterChef, MasterChefV2, or None
     /// @param _pid the Sushiswap pool ID in the relevant sushiRewarder
     /// @param _fixedRate the fixed rate that that will be returned to token depositors for this pool
-    /// @param _weth WETH9 address, validated by vault
+    /// @param _weth WETH9 address
     constructor(
         address _vaultAddress,
         address _token,
@@ -85,6 +85,7 @@ contract Pool is ERC20 {
             string(abi.encodePacked('rp', ERC20(_token).symbol(), 'v1'))
         )
     {
+        require(_weth != address(0), 'Invalid weth address');
         require(_fixedRate < 1000, 'Invalid fixed rate');
         pair = SushiSwapLibrary.pairFor(sushiFactory, _token, _weth);
         if (_sushiRewarder == uint256(SushiRewarder.MasterChef)) {

@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { ethers } from 'hardhat';
+import hre, { ethers } from 'hardhat';
 import { BigNumber } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
@@ -8,15 +8,15 @@ import {
   Vault,
   ERC20,
   IMasterChefV2,
-  Pool,
   PoolV2Mock,
   IWETH,
   IERC20__factory,
   IUniswapV2Router02__factory,
+  SushiPool,
 } from '../typechain';
 import {
   deployVault,
-  deployPool,
+  deploySushiPool,
   getERC20,
   getTokens,
   getMasterChef,
@@ -25,8 +25,10 @@ import {
   getWETH,
 } from './utils';
 import { Addresses, Contracts, getMasterChefPid, getSushiRewarder, Tokens } from './constants';
+import { Artifact } from 'hardhat/types';
+import { deployContract } from 'ethereum-waffle';
 
-describe('Rift Pool Unit tests', () => {
+describe('Rift Sushi Pool Unit tests', () => {
   const fixedRate = BigNumber.from('10');
   const invalidFixedRate = BigNumber.from('2000');
 
@@ -46,7 +48,7 @@ describe('Rift Pool Unit tests', () => {
   let masterChefV2: IMasterChefV2;
 
   let vault: Vault;
-  let pool: Pool;
+  let pool: SushiPool;
   let poolV2: PoolV2Mock;
 
   before(async () => {
@@ -65,7 +67,7 @@ describe('Rift Pool Unit tests', () => {
     beforeEach(async () => {
       token = await getERC20(Tokens.aave);
       vault = await deployVault(admin, feeTo, feeAmount);
-      pool = await deployPool(admin, vault, token, fixedRate);
+      pool = await deploySushiPool(admin, vault, token, fixedRate);
     });
 
     it('should correctly assign token metadata', async () => {
@@ -87,21 +89,51 @@ describe('Rift Pool Unit tests', () => {
     });
 
     it('should reject deployment with invalid fixed rate', async () => {
-      await expect(deployPool(admin, vault, token, invalidFixedRate, true)).to.be.revertedWith('Invalid fixed rate');
+      await expect(deploySushiPool(admin, vault, token, invalidFixedRate)).to.be.revertedWith('Invalid fixed rate');
     });
 
     it('should reject deployment with invalid sushi master chef pid', async () => {
       token = await getERC20(Tokens.yfi);
+      const sushiPoolArtifact: Artifact = await hre.artifacts.readArtifact('SushiPool');
       await expect(
-        vault.deployPool(token.address, getSushiRewarder(token.address), 0, fixedRate, false),
+        deployContract(admin, sushiPoolArtifact, [
+          vault.address,
+          token.address,
+          getSushiRewarder(token.address),
+          0,
+          fixedRate,
+          Tokens.weth,
+        ]),
       ).to.be.revertedWith('invalid pid mapping');
     });
 
     it('should reject deployment with invalid sushi master chef v2 pid', async () => {
       token = await getERC20(Tokens.alcx);
+      const sushiPoolArtifact: Artifact = await hre.artifacts.readArtifact('SushiPool');
       await expect(
-        vault.deployPool(token.address, getSushiRewarder(token.address), 1, fixedRate, false),
+        deployContract(admin, sushiPoolArtifact, [
+          vault.address,
+          token.address,
+          getSushiRewarder(token.address),
+          1,
+          fixedRate,
+          Tokens.weth,
+        ]),
       ).to.be.revertedWith('invalid pid mapping');
+    });
+
+    it('should reject deployment with invalid weth', async () => {
+      const sushiPoolArtifact: Artifact = await hre.artifacts.readArtifact('SushiPool');
+      await expect(
+        deployContract(admin, sushiPoolArtifact, [
+          vault.address,
+          token.address,
+          getSushiRewarder(token.address),
+          1,
+          fixedRate,
+          Addresses.zero,
+        ]),
+      ).to.be.revertedWith('Invalid weth address');
     });
   });
 
@@ -109,7 +141,8 @@ describe('Rift Pool Unit tests', () => {
     beforeEach(async () => {
       token = await getERC20(Tokens.aave);
       vault = await deployVault(admin, feeTo, feeAmount);
-      pool = await deployPool(admin, vault, token, fixedRate);
+      pool = await deploySushiPool(admin, vault, token, fixedRate);
+      await vault.registerPool(pool.address, false);
     });
 
     it('should reject withdraws', async () => {
@@ -144,7 +177,8 @@ describe('Rift Pool Unit tests', () => {
       beforeEach(async () => {
         token = await getERC20(Tokens.aave);
         vault = await deployVault(admin, feeTo, feeAmount);
-        pool = await deployPool(admin, vault, token, fixedRate);
+        pool = await deploySushiPool(admin, vault, token, fixedRate);
+        await vault.registerPool(pool.address, false);
 
         await getTokens(alice, token, tokenDepositAmount);
         await token.connect(alice).approve(pool.address, tokenDepositAmount);
@@ -224,7 +258,8 @@ describe('Rift Pool Unit tests', () => {
       beforeEach(async () => {
         token = await getERC20(Tokens.yfi);
         vault = await deployVault(admin, feeTo, feeAmount);
-        pool = await deployPool(admin, vault, token, fixedRate);
+        pool = await deploySushiPool(admin, vault, token, fixedRate);
+        await vault.registerPool(pool.address, false);
 
         await getTokens(alice, token, tokenDepositAmount);
         await token.connect(alice).approve(pool.address, tokenDepositAmount);
@@ -259,7 +294,8 @@ describe('Rift Pool Unit tests', () => {
       beforeEach(async () => {
         token = await getERC20(Tokens.alcx);
         vault = await deployVault(admin, feeTo, feeAmount);
-        pool = await deployPool(admin, vault, token, fixedRate);
+        pool = await deploySushiPool(admin, vault, token, fixedRate);
+        await vault.registerPool(pool.address, false);
 
         await getTokens(alice, token, tokenDepositAmount);
         await token.connect(alice).approve(pool.address, tokenDepositAmount);
@@ -296,7 +332,8 @@ describe('Rift Pool Unit tests', () => {
         const tokenDepositMinimal = BigNumber.from(100);
         token = await getERC20(Tokens.aave);
         vault = await deployVault(admin, feeTo, feeAmount);
-        pool = await deployPool(admin, vault, token, fixedRateZero);
+        pool = await deploySushiPool(admin, vault, token, fixedRateZero);
+        await vault.registerPool(pool.address, false);
 
         await getTokens(alice, token, tokenDepositMinimal);
         await token.connect(alice).approve(pool.address, tokenDepositMinimal);
@@ -328,7 +365,8 @@ describe('Rift Pool Unit tests', () => {
     beforeEach(async () => {
       token = await getERC20(Tokens.yfi);
       vault = await deployVault(admin, feeTo, feeAmount);
-      pool = await deployPool(admin, vault, token, fixedRate);
+      pool = await deploySushiPool(admin, vault, token, fixedRate);
+      await vault.registerPool(pool.address, false);
 
       await getTokens(alice, token, tokenDepositAmount);
       await token.connect(alice).approve(pool.address, tokenDepositAmount);
