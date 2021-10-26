@@ -80,9 +80,9 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     /// @notice allows users to deposit WETH during Phase zero and receive a staking token 1:1
     /// @param _amount the amount of WETH to deposit
     function depositWeth(uint256 _amount) external duringPhase(Phases.Zero) {
-        IWETH(WETH).transferFrom(msg.sender, address(this), _amount);
         _mint(msg.sender, _amount);
         emit Deposit(msg.sender, _amount);
+        IWETH(WETH).transferFrom(msg.sender, address(this), _amount);
     }
 
     /// @notice allows users to burn their staking tokens and withdraw ETH during Phase Two.
@@ -106,11 +106,11 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
         }
         _burn(msg.sender, amount);
         if (_vaultV2 == address(0)) {
-            payable(msg.sender).transfer(returnAmount);
             emit Withdraw(msg.sender, returnAmount);
+            payable(msg.sender).transfer(returnAmount);
         } else {
-            IVaultV2(_vaultV2).migrateLiquidity{ value: returnAmount }(msg.sender);
             emit Migration(msg.sender, returnAmount);
+            IVaultV2(_vaultV2).migrateLiquidity{ value: returnAmount }(msg.sender);
         }
     }
 

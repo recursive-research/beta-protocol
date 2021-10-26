@@ -73,9 +73,9 @@ contract StableVault is Ownable {
     /// @param _amount how much of the token to deposit, and how many staking tokens will be minted
     function depositToken(address _token, uint256 _amount) external validToken(_token) {
         require(!liquidityAdded, 'Liquidity already deployed');
+        emit Deposit(_token, msg.sender, _amount);
         IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
         _token == usdc ? svUsdc.mint(msg.sender, _amount) : svUsdt.mint(msg.sender, _amount);
-        emit Deposit(_token, msg.sender, _amount);
     }
 
     /// @notice allows user to withdraw or migrate from the StableVault at the end. Can only be withdrawn
@@ -95,13 +95,13 @@ contract StableVault is Ownable {
         returnAmount = (IERC20(_token).balanceOf(address(this)) * amount) / svToken.totalSupply();
         svToken.burn(msg.sender, amount);
         if (_stableVaultV2 == address(0)) {
-            IERC20(_token).safeTransfer(msg.sender, returnAmount);
             emit Withdraw(_token, msg.sender, returnAmount);
+            IERC20(_token).safeTransfer(msg.sender, returnAmount);
         } else {
+            emit Migration(_token, msg.sender, returnAmount);
             IERC20(_token).safeApprove(_stableVaultV2, 0);
             IERC20(_token).safeApprove(_stableVaultV2, returnAmount);
             IStableVaultV2(_stableVaultV2).migrateLiquidity(returnAmount, msg.sender);
-            emit Migration(_token, msg.sender, returnAmount);
         }
     }
 
