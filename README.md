@@ -50,9 +50,7 @@ The Vault owner then calls `nextPhase`, which moves the Vault into Phase Two.
 
 #### Phase Two
 
-During Phase Two, users can withdraw.
-
-Users who deposited into the Vault can burn their staking tokens for their proportional share of `ETH` sitting in the vault contract by calling `withdrawEth`. They can also migrate their `ETH` to Rift's V2, by adding a valid argument for `_vaultV2`, and the vault sends their `ETH` to the new vault on behalf of the user.
+During Phase Two, the contract owner (of the vault) or migrator (for the pools) will be able to migrate the liquidity from these contracts to those of V2. The V2 contracts will handle logic for users to be able to redeem their V1 staking tokens for the V2 staking tokens.
 
 Users who deposited into the Pool can burn their staking tokens for their proportional share of `token` sitting in the respective Pool by calling `withdrawToken`. Similarly, they can also migrate their liquidity to the V2 contracts by adding a valid argument for `_poolV2`.
 
