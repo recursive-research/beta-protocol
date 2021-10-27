@@ -5,7 +5,14 @@ import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import '../interfaces/IVaultV2.sol';
 
 contract VaultV2Mock is ERC20('Mock V2 Vault', 'mv2v'), IVaultV2 {
-    function migrateLiquidity(address _onBehalfOf) external payable override {
-        _mint(_onBehalfOf, msg.value);
+    address public vaultV1;
+
+    constructor(address _vaultV1) {
+        vaultV1 = _vaultV1;
+    }
+
+    function migrateLiquidity() external payable override {
+        require(msg.sender == vaultV1, 'only vault v1');
+        _mint(msg.sender, msg.value);
     }
 }

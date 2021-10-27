@@ -20,14 +20,14 @@ import { deployContract } from 'ethereum-waffle';
 import { Contracts, getMasterChefPid, getSushiRewarder, getWhale, Tokens } from './constants';
 
 // Helper functions to deploy contracts
-export async function deployVault(admin: SignerWithAddress, feeTo: string, feeAmount: BigNumber): Promise<Vault> {
+export async function deployVault(admin: SignerWithAddress): Promise<Vault> {
   const vaultArtifact: Artifact = await hre.artifacts.readArtifact('Vault');
-  return (await deployContract(admin, vaultArtifact, [feeTo, feeAmount, Tokens.weth])) as Vault;
+  return (await deployContract(admin, vaultArtifact, [Tokens.weth])) as Vault;
 }
 
-export async function deployVaultV2(admin: SignerWithAddress): Promise<VaultV2Mock> {
+export async function deployVaultV2(admin: SignerWithAddress, vaultV1: string): Promise<VaultV2Mock> {
   const vaultArtifact: Artifact = await hre.artifacts.readArtifact('VaultV2Mock');
-  return (await deployContract(admin, vaultArtifact)) as VaultV2Mock;
+  return (await deployContract(admin, vaultArtifact, [vaultV1])) as VaultV2Mock;
 }
 
 export async function deploySushiPool(
@@ -62,9 +62,9 @@ export async function deployUniPool(
   ])) as UniPool;
 }
 
-export async function deployPoolV2(admin: SignerWithAddress, address: string): Promise<PoolV2Mock> {
+export async function deployPoolV2(admin: SignerWithAddress, address: string, poolV1: string): Promise<PoolV2Mock> {
   const poolArtifact: Artifact = await hre.artifacts.readArtifact('PoolV2Mock');
-  return (await deployContract(admin, poolArtifact, [address])) as PoolV2Mock;
+  return (await deployContract(admin, poolArtifact, [address, poolV1])) as PoolV2Mock;
 }
 
 export async function deployStableVault(admin: SignerWithAddress): Promise<StableVault> {

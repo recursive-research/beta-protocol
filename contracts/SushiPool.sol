@@ -37,6 +37,8 @@ contract SushiPool is ERC20 {
 
     /// @notice Sushiswap pair for this token <> WETH
     address public pair;
+    /// @notice address that can migrate liquidity at end of the period
+    address public migrator;
     /// @notice tracks the intitial token deposit amount, so the Pool can calculate how much must be returned
     uint256 public tokenPrincipalAmount;
     /// @notice the SLP tokens received after the pool adds liquidity
@@ -99,6 +101,7 @@ contract SushiPool is ERC20 {
         sushiRewarder = SushiRewarder(_sushiRewarder);
         fixedRate = _fixedRate;
         WETH = _weth;
+        migrator = msg.sender;
     }
 
     /// @notice emitted after a successful deposit
@@ -106,15 +109,10 @@ contract SushiPool is ERC20 {
     /// @param amount the amount that was deposited
     event Deposit(address indexed user, uint256 amount);
 
-    /// @notice emitted after a successful withdrawal
-    /// @param user the address that withdrew from the Pool
-    /// @param amount The amount of token that was withdrawn
-    event Withdraw(address indexed user, uint256 amount);
-
     /// @notice emitted after a successful migration
-    /// @param user the address that migrated from the Pool
+    /// @param pool the pool to which liquidity was migrated
     /// @param amount The amount of token that was migrated
-    event Migration(address indexed user, uint256 amount);
+    event Migration(address indexed pool, uint256 amount);
 
     /// @notice allows users to deposit the pool's token during Phase Zero
     /// @param _amount how much of the token to deposit, and how many staking tokens will be minted
@@ -124,23 +122,18 @@ contract SushiPool is ERC20 {
         IERC20(token).safeTransferFrom(msg.sender, address(this), _amount);
     }
 
-    /// @notice allows user to withdraw or migrate from the pool during Phase Two
-    /// @param _poolV2 if the user wishes to migrate their token to Rift's V2 Pools, they can
-    /// do so by setting this parameter as a valid V2 pool address.
-    function withdrawToken(address _poolV2) external duringPhase(IVault.Phases.Two) {
-        uint256 amount = balanceOf(msg.sender);
-        require(amount > 0, 'User has no balance');
-        uint256 returnAmount = (IERC20(token).balanceOf(address(this)) * amount) / totalSupply();
-        _burn(msg.sender, amount);
-        if (_poolV2 == address(0)) {
-            emit Withdraw(msg.sender, returnAmount);
-            IERC20(token).safeTransfer(msg.sender, returnAmount);
-        } else {
-            emit Migration(msg.sender, returnAmount);
-            IERC20(token).safeApprove(_poolV2, 0);
-            IERC20(token).safeApprove(_poolV2, returnAmount);
-            IPoolV2(_poolV2).migrateLiquidity(returnAmount, msg.sender);
-        }
+    /// @notice allows the contract owner to migrate liquidity to the next version of contracts
+    /// @param _poolV2 address of the next version of this contract. Trusted to be benevolent.
+    /// This Pool's staking token will be be redeemable for an equivalent value of the PoolV2's
+    /// staking token
+    function migrateLiquidity(address _poolV2) external duringPhase(IVault.Phases.Two) {
+        require(msg.sender == migrator, 'only migrator');
+        uint256 balance = IERC20(token).balanceOf(address(this));
+        emit Migration(_poolV2, balance);
+
+        IERC20(token).safeApprove(_poolV2, 0);
+        IERC20(token).safeApprove(_poolV2, balance);
+        IPoolV2(_poolV2).migrateLiquidity(balance);
     }
 
     /// @notice function to add liquidity to the token <> WETH SushiSwap pool and stake the SLP tokens
@@ -319,5 +312,10 @@ contract SushiPool is ERC20 {
         path = new address[](2);
         path[0] = _from;
         path[1] = _to;
+    }
+
+    function updateMigrator(address _newMigrator) external {
+        require(msg.sender == migrator, 'only migrator');
+        migrator = _newMigrator;
     }
 }

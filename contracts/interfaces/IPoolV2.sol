@@ -2,5 +2,5 @@
 pragma solidity 0.8.6;
 
 interface IPoolV2 {
-    function migrateLiquidity(uint256 _amount, address _onBehalfOf) external;
+    function migrateLiquidity(uint256 _amount) external;
 }
