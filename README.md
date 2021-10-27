@@ -52,8 +52,6 @@ The Vault owner then calls `nextPhase`, which moves the Vault into Phase Two.
 
 During Phase Two, the contract owner (of the vault) or migrator (for the pools) will be able to migrate the liquidity from these contracts to those of V2. The V2 contracts will handle logic for users to be able to redeem their V1 staking tokens for the V2 staking tokens.
 
-Users who deposited into the Pool can burn their staking tokens for their proportional share of `token` sitting in the respective Pool by calling `withdrawToken`. Similarly, they can also migrate their liquidity to the V2 contracts by adding a valid argument for `_poolV2`.
-
 ## `StableVault` and `StableVaultToken`
 
 The main contract is `StableVault`. This contract deploys and "owns" two instances of the `StableVaultToken`.
