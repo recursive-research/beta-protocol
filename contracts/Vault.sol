@@ -11,10 +11,6 @@ import './interfaces/IWETH.sol';
 contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     /// @notice weth9 address
     address public immutable WETH;
-    /// @notice feeTo address for protocol fee
-    address public feeTo;
-    /// @notice fee out of 1000 on profits
-    uint256 public feeAmount;
 
     mapping(address => address) public poolToToken;
 
@@ -39,15 +35,10 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     /// @param amount the amount that was deposited
     event Deposit(address indexed user, uint256 amount);
 
-    /// @notice emitted after a successful withdrawal
-    /// @param user the address that withdrew from the Vault
-    /// @param amount The amount of ETH that was withdrawn
-    event Withdraw(address indexed user, uint256 amount);
-
     /// @notice emitted after a successful migration
-    /// @param user the address that migrated from the Vault
+    /// @param vault the vault to which liquidity was migrated
     /// @param amount The amount of ETH that was migrated
-    event Migration(address indexed user, uint256 amount);
+    event Migration(address indexed vault, uint256 amount);
 
     /// @notice emitted after the vault pairs some of its liquidity with a pool
     /// @param pool the pool to which liquidity was deployed
@@ -59,15 +50,8 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
     event LiquidityReturned(address indexed pool);
 
     /// @notice creates a new vault.
-    constructor(
-        address _feeTo,
-        uint256 _feeAmount,
-        address _weth
-    ) {
-        require(_feeAmount <= 100, 'Invalid feeAmount'); // maximum 10%
+    constructor(address _weth) {
         require(_weth != address(0), 'Invalid weth');
-        feeTo = _feeTo;
-        feeAmount = _feeAmount;
         WETH = _weth;
     }
 
@@ -85,33 +69,15 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
         IWETH(WETH).transferFrom(msg.sender, address(this), _amount);
     }
 
-    /// @notice allows users to burn their staking tokens and withdraw ETH during Phase Two.
-    /// Users can only withdraw or migrate their entire balance. There will be no reason to
-    /// keep their ETH in the Vault after phase two. So they can employ it productively by
-    /// either migrating it to a V2 vault, or by withdrawing the full amount.
-    /// @param _vaultV2 if the user wishes to migrate their liquidity to Rift's V2 Vault,
-    /// they can do so by setting an address that is the Rift V2 vault, and the contract will
-    /// send their ETH to the new Vault on behalf of the user. Otherwise, the contract sends
-    /// the user's proportional share of ETH back to the user.
-    function withdrawEth(address _vaultV2) external duringPhase(Phases.Two) returns (uint256 returnAmount) {
-        uint256 amount = balanceOf(msg.sender);
-        require(amount > 0, 'User has no balance');
-        returnAmount = (address(this).balance * amount) / totalSupply();
-        // if feeAmount > 0 and feeTo is set and the position was profitable
-        if (feeAmount != 0 && feeTo != address(0) && returnAmount > amount) {
-            uint256 protocolFee = ((returnAmount - amount) * feeAmount) / 1000;
-            returnAmount -= protocolFee;
-            IWETH(WETH).deposit{ value: protocolFee }();
-            IWETH(WETH).transfer(feeTo, protocolFee);
-        }
-        _burn(msg.sender, amount);
-        if (_vaultV2 == address(0)) {
-            emit Withdraw(msg.sender, returnAmount);
-            payable(msg.sender).transfer(returnAmount);
-        } else {
-            emit Migration(msg.sender, returnAmount);
-            IVaultV2(_vaultV2).migrateLiquidity{ value: returnAmount }(msg.sender);
-        }
+    /// @notice allows the contract owner to migrate liquidity to the next version of contract
+    /// @param _vaultV2 address of the next version of this contract. Trusted to be benevolent.
+    /// This Vault's staking token will be be redeemable for an equivalent value of the VaultV2's
+    /// staking token
+    function migrateLiquidity(address _vaultV2) external onlyOwner duringPhase(Phases.Two) {
+        uint256 balance = address(this).balance;
+        emit Migration(_vaultV2, balance);
+
+        IVaultV2(_vaultV2).migrateLiquidity{ value: balance }();
     }
 
     /// @notice registers a pool.
@@ -156,8 +122,8 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
         uint256 _minAmountToken
     ) external onlyOwner duringPhase(Phases.One) {
         require(poolToToken[_pool] != address(0), 'Invalid pool');
-        IPool(_pool).unpairLiquidity(_minAmountWeth, _minAmountToken);
         emit LiquidityReturned(_pool);
+        IPool(_pool).unpairLiquidity(_minAmountWeth, _minAmountToken);
     }
 
     /// @notice allows the Vault owner to move the Vault into its next phase
@@ -165,17 +131,6 @@ contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
         uint256 _nextPhase = uint256(phase) + 1;
         require(_nextPhase <= 2, 'Invalid next phase');
         phase = Phases(_nextPhase);
-    }
-
-    /// @notice set the fee to address
-    function setFeeTo(address _feeTo) external onlyOwner {
-        feeTo = _feeTo;
-    }
-
-    /// @notice set the fee amount
-    function setFeeAmount(uint256 _feeAmount) external onlyOwner {
-        require(_feeAmount <= 100, 'Invalid feeAmount'); // maximum 10%
-        feeAmount = _feeAmount;
     }
 
     /// @notice allows the owner to wrap any ETH in the contract. Called at the beginning of Phase One

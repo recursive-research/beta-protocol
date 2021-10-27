@@ -35,9 +35,6 @@ describe('Rift Sushi Pool Unit tests', () => {
   const ethDepositAmount = ethers.utils.parseEther('1');
   const tokenDepositAmount = ethers.utils.parseEther('1');
 
-  const feeTo = Addresses.zero;
-  const feeAmount = BigNumber.from(0);
-
   let admin: SignerWithAddress;
   let alice: SignerWithAddress;
   let bob: SignerWithAddress;
@@ -66,7 +63,7 @@ describe('Rift Sushi Pool Unit tests', () => {
   describe('Deployment', async () => {
     beforeEach(async () => {
       token = await getERC20(Tokens.aave);
-      vault = await deployVault(admin, feeTo, feeAmount);
+      vault = await deployVault(admin);
       pool = await deploySushiPool(admin, vault, token, fixedRate);
     });
 
@@ -135,18 +132,24 @@ describe('Rift Sushi Pool Unit tests', () => {
         ]),
       ).to.be.revertedWith('Invalid weth address');
     });
+
+    it('should reject migrator update from non migrator', async () => {
+      await expect(pool.connect(alice).updateMigrator(alice.address)).to.be.revertedWith('only migrator');
+    });
+
+    it('should allow migrator to update migrator', async () => {
+      expect(await pool.migrator()).to.eq(admin.address);
+      await pool.updateMigrator(alice.address);
+      expect(await pool.migrator()).to.eq(alice.address);
+    });
   });
 
   describe('Phase Zero', async () => {
     beforeEach(async () => {
       token = await getERC20(Tokens.aave);
-      vault = await deployVault(admin, feeTo, feeAmount);
+      vault = await deployVault(admin);
       pool = await deploySushiPool(admin, vault, token, fixedRate);
       await vault.registerPool(pool.address);
-    });
-
-    it('should reject withdraws', async () => {
-      await expect(pool.connect(alice).withdrawToken(Addresses.zero)).to.be.revertedWith('Invalid Phase function');
     });
 
     describe('Deposits', async () => {
@@ -176,7 +179,7 @@ describe('Rift Sushi Pool Unit tests', () => {
     describe('Basic Token, no sushi rewards', async () => {
       beforeEach(async () => {
         token = await getERC20(Tokens.aave);
-        vault = await deployVault(admin, feeTo, feeAmount);
+        vault = await deployVault(admin);
         pool = await deploySushiPool(admin, vault, token, fixedRate);
         await vault.registerPool(pool.address);
 
@@ -192,10 +195,6 @@ describe('Rift Sushi Pool Unit tests', () => {
 
       it('should reject deposits', async () => {
         await expect(pool.connect(alice).depositToken(tokenDepositAmount)).to.be.revertedWith('Invalid Phase function');
-      });
-
-      it('should reject withdraws', async () => {
-        await expect(pool.connect(alice).withdrawToken(Addresses.zero)).to.be.revertedWith('Invalid Phase function');
       });
 
       it('should reject pairLiquidity calls from non-vault', async () => {
@@ -257,7 +256,7 @@ describe('Rift Sushi Pool Unit tests', () => {
     describe('Token with Master Chef sushi rewards', async () => {
       beforeEach(async () => {
         token = await getERC20(Tokens.yfi);
-        vault = await deployVault(admin, feeTo, feeAmount);
+        vault = await deployVault(admin);
         pool = await deploySushiPool(admin, vault, token, fixedRate);
         await vault.registerPool(pool.address);
 
@@ -293,7 +292,7 @@ describe('Rift Sushi Pool Unit tests', () => {
     describe('Token with Master Chef V2 sushi rewards', async () => {
       beforeEach(async () => {
         token = await getERC20(Tokens.alcx);
-        vault = await deployVault(admin, feeTo, feeAmount);
+        vault = await deployVault(admin);
         pool = await deploySushiPool(admin, vault, token, fixedRate);
         await vault.registerPool(pool.address);
 
@@ -331,7 +330,7 @@ describe('Rift Sushi Pool Unit tests', () => {
         const fixedRateZero = BigNumber.from(0);
         const tokenDepositMinimal = BigNumber.from(100);
         token = await getERC20(Tokens.aave);
-        vault = await deployVault(admin, feeTo, feeAmount);
+        vault = await deployVault(admin);
         pool = await deploySushiPool(admin, vault, token, fixedRateZero);
         await vault.registerPool(pool.address);
 
@@ -364,7 +363,7 @@ describe('Rift Sushi Pool Unit tests', () => {
   describe('Phase Two', async () => {
     beforeEach(async () => {
       token = await getERC20(Tokens.yfi);
-      vault = await deployVault(admin, feeTo, feeAmount);
+      vault = await deployVault(admin);
       pool = await deploySushiPool(admin, vault, token, fixedRate);
       await vault.registerPool(pool.address);
 
@@ -388,45 +387,27 @@ describe('Rift Sushi Pool Unit tests', () => {
       await expect(pool.connect(alice).depositToken(tokenDepositAmount)).to.be.revertedWith('Invalid Phase function');
     });
 
-    it('should reject withdraw when user has no balance', async () => {
-      await expect(pool.connect(bob).withdrawToken(Addresses.zero)).to.be.revertedWith('User has no balance');
+    it('should reject migration from non migrator', async () => {
+      poolV2 = await deployPoolV2(admin, token.address, pool.address);
+      await expect(pool.connect(alice).migrateLiquidity(poolV2.address)).to.be.revertedWith('only migrator');
     });
 
-    it('should allow users to withdraw their balance', async () => {
+    it('should allow migrator to migrate liquidity to v2', async () => {
       const tokenReturn = await token.balanceOf(pool.address);
-      expect(tokenReturn).to.be.gt(tokenDepositAmount);
+      poolV2 = await deployPoolV2(admin, token.address, pool.address);
 
-      await pool.connect(alice).withdrawToken(Addresses.zero);
-      expect(await token.balanceOf(alice.address)).to.eq(tokenReturn);
-      expect(await pool.balanceOf(alice.address)).to.eq(0);
-      expect(await token.balanceOf(pool.address)).to.eq(0);
-    });
+      await pool.migrateLiquidity(poolV2.address);
 
-    it('should emit event when user withdraws', async () => {
-      const tokenReturn = await token.balanceOf(pool.address);
-      await expect(pool.connect(alice).withdrawToken(Addresses.zero))
-        .to.emit(pool, 'Withdraw')
-        .withArgs(alice.address, tokenReturn);
-    });
-
-    it('should allow users to migrate their liquidity to v2', async () => {
-      const tokenReturn = await token.balanceOf(pool.address);
-      poolV2 = await deployPoolV2(admin, token.address);
-
-      await pool.connect(alice).withdrawToken(poolV2.address);
-
-      expect(await pool.balanceOf(alice.address)).to.eq(0);
       expect(await token.balanceOf(pool.address)).to.eq(0);
       expect(await token.balanceOf(poolV2.address)).to.eq(tokenReturn);
-      expect(await poolV2.balanceOf(alice.address)).to.eq(tokenReturn);
     });
 
     it('should emit event when user migrates to v2', async () => {
       const tokenReturn = await token.balanceOf(pool.address);
-      poolV2 = await deployPoolV2(admin, token.address);
-      await expect(pool.connect(alice).withdrawToken(poolV2.address))
+      poolV2 = await deployPoolV2(admin, token.address, pool.address);
+      await expect(pool.migrateLiquidity(poolV2.address))
         .to.emit(pool, 'Migration')
-        .withArgs(alice.address, tokenReturn);
+        .withArgs(poolV2.address, tokenReturn);
     });
   });
 });

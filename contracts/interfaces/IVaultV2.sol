@@ -2,5 +2,5 @@
 pragma solidity 0.8.6;
 
 interface IVaultV2 {
-    function migrateLiquidity(address _onBehalfOf) external payable;
+    function migrateLiquidity() external payable;
 }
