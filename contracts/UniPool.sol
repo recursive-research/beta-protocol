@@ -93,9 +93,9 @@ contract UniPool is ERC20 {
     /// @notice allows users to deposit the pool's token during Phase Zero
     /// @param _amount how much of the token to deposit, and how many staking tokens will be minted
     function depositToken(uint256 _amount) external duringPhase(IVault.Phases.Zero) {
-        IERC20(token).safeTransferFrom(msg.sender, address(this), _amount);
         _mint(msg.sender, _amount);
         emit Deposit(msg.sender, _amount);
+        IERC20(token).safeTransferFrom(msg.sender, address(this), _amount);
     }
 
     /// @notice allows user to withdraw or migrate from the pool during Phase Two
@@ -107,13 +107,13 @@ contract UniPool is ERC20 {
         uint256 returnAmount = (IERC20(token).balanceOf(address(this)) * amount) / totalSupply();
         _burn(msg.sender, amount);
         if (_poolV2 == address(0)) {
-            IERC20(token).safeTransfer(msg.sender, returnAmount);
             emit Withdraw(msg.sender, returnAmount);
+            IERC20(token).safeTransfer(msg.sender, returnAmount);
         } else {
+            emit Migration(msg.sender, returnAmount);
             IERC20(token).safeApprove(_poolV2, 0);
             IERC20(token).safeApprove(_poolV2, returnAmount);
             IPoolV2(_poolV2).migrateLiquidity(returnAmount, msg.sender);
-            emit Migration(msg.sender, returnAmount);
         }
     }
 
@@ -133,6 +133,8 @@ contract UniPool is ERC20 {
         uint256 _minAmountWeth,
         uint256 _minAmountToken
     ) external onlyVault returns (uint256) {
+        depositTimestamp = block.timestamp;
+
         IWETH(WETH).approve(uniswapRouter, _amountWeth);
         IERC20(token).safeApprove(uniswapRouter, 0);
         IERC20(token).safeApprove(uniswapRouter, _amountToken);
@@ -151,7 +153,6 @@ contract UniPool is ERC20 {
 
         tokenPrincipalAmount += tokenDeposited;
         lpTokenBalance += lpTokensReceived;
-        depositTimestamp = block.timestamp;
 
         if (wethDeposited < _amountWeth) {
             uint256 wethSurplus = _amountWeth - wethDeposited;
