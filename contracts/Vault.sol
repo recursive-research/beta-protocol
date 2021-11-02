@@ -8,7 +8,7 @@ import './interfaces/IWETH.sol';
 
 /// @title Rift V1 Eth Vault
 /// @notice allows users to deposit eth, which will deployed to various pools to earn a return during a period.
-contract Vault is ERC20('RIFT - Fixed Rate ETH V1', 'riftETHv1'), Ownable {
+contract Vault is ERC20('RIFT ETH Vault V1', 'riftETHv1'), Ownable {
     /// @notice weth9 address
     address public immutable WETH;
 
