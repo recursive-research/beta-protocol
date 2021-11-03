@@ -10,7 +10,7 @@ import { Artifact } from 'hardhat/types';
 import { deployContract } from 'ethereum-waffle';
 
 describe('Rift Vault Unit tests', () => {
-  const tokenName = 'RIFT - Fixed Rate ETH V1';
+  const tokenName = 'RIFT ETH Vault V1';
   const tokenSymbol = 'riftETHv1';
 
   const fixedRate = BigNumber.from('5'); // out of 1000
