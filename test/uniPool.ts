@@ -48,8 +48,8 @@ describe('Rift Uniswap Pool Unit tests', () => {
       const tokenName = await token.name();
       const tokenSymbol = await token.symbol();
 
-      expect(await pool.name()).to.eq('Rift ' + tokenName + ' Pool V1');
-      expect(await pool.symbol()).to.eq('rp' + tokenSymbol + 'v1');
+      expect(await pool.name()).to.eq('Rift ' + tokenName + ' Uni Pool V1');
+      expect(await pool.symbol()).to.eq('rp' + tokenSymbol + 'uv1');
     });
 
     it('should mint no tokens on deployment', async () => {

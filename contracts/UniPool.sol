@@ -64,8 +64,8 @@ contract UniPool is ERC20 {
         address _weth
     )
         ERC20(
-            string(abi.encodePacked('Rift ', ERC20(_token).name(), ' Pool V1')),
-            string(abi.encodePacked('rp', ERC20(_token).symbol(), 'v1'))
+            string(abi.encodePacked('Rift ', ERC20(_token).name(), ' Uni Pool V1')),
+            string(abi.encodePacked('rp', ERC20(_token).symbol(), 'uv1'))
         )
     {
         require(_weth != address(0), 'Invalid weth address');
