@@ -21,7 +21,7 @@ contract StableVaultToken is ERC20, Ownable {
 
     /// @notice both USDC and USDT have 6 decimals. To mint the same number of staking
     /// tokens for depositors, we'll use the same.
-    function decimals() public view virtual override returns (uint8) {
+    function decimals() public view override returns (uint8) {
         return 6;
     }
 
