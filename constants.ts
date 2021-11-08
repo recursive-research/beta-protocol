@@ -3,11 +3,40 @@ import { BigNumber } from 'ethers';
 export const Tokens = {
   alcx: '0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF',
   aave: '0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9',
+  ftm: '0x4E15361FD6b4BB609Fa63C81A2be19d873717870',
+  inj: '0xe28b3B32B6c345A34Ff64674606124Dd5Aceca30',
   sushi: '0x6B3595068778DD592e39A122f4f5a5cF09C90fE2',
   usdc: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
   usdt: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
   yfi: '0x0bc529c00C6401aEF6D220BE8C6Ea1667F6Ad93e',
   weth: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+  kovan: {
+    usdc: '0xe22da380ee6B445bb8273C81944ADEB6E8450422',
+    usdt: '0x13512979ADE267AB5100878E2e0f485B568328a4',
+    weth: '0xd0A1E359811322d97991E03f863a0C30C2cF029C',
+    inj: '0xC1EFDc173A6453EBa26076591797596045BA10d0',
+    ftm: '0x5ef63F2f3c69F8B0C519a218D99642d13bD7A81c',
+  },
+};
+
+export const Deployments = {
+  kovan: {
+    vault: '0x08e4b95Efdbbc50CA16924F032841444Db954a30',
+    injPool: '0x5DDe72263bA9E84c0b2e298c795F9b8939FCB48f',
+    ftmPool: '0x1fCA8c2CE7C4FA9046b183F699AF7a5977C4FD9D',
+    stableVault: '0x820EFff6D9A3017e65025f2010bBED60904052fD',
+    stableVaultUSDC: '0x2ded02155B7246231A1530e37Ca8CC725fC41D29',
+    stableVaultUSDT: '0xc00312f64691C25dDA5ACC002e58d379b0eABb51',
+  },
+  mainnet: {
+    vault: '0x55ca010c9E69b1D0D1919F3b7208Fa5DF63E2295',
+    alcxPool: '0x3398b43A14B92f63FD44aad9dd460eA56E07edEE',
+    ftmPool: '0x4DEb70248aa7FCf8714162d2910Ea671D5F0De39',
+    injPool: '0x399b4cee6418EF5a4ea08831957c57AEeb51760b',
+    stableVault: '0x9d6C589c2Fb109a57b4676e5438E5798A2f2bB5E',
+    stableVaultUSDC: '0x7395537e0AaAC7EcA1E6491eCC7F5d09F5742370',
+    stableVaultUSDT: '0x2432b2b951D2c8E436F79C0B453Ad7f28c81CD72',
+  },
 };
 
 export const Contracts = {
@@ -20,7 +49,7 @@ export const Contracts = {
 export const Addresses = {
   zero: '0x0000000000000000000000000000000000000000',
   dead: '0x000000000000000000000000000000000000dEaD',
-  multisig: '0xFf89C654846B2E4BC572cEABE77056daf7b299a3',
+  gnosis_beta: '0x597C38aE5e20f81DcE85E484621e05b1ED99B235',
 };
 
 export function getWhale(address: string): string {
@@ -50,6 +79,10 @@ export function getMasterChefPid(address: string): BigNumber {
       return BigNumber.from('37');
     case Tokens.alcx:
       return BigNumber.from('0');
+    case Tokens.ftm:
+      return BigNumber.from('140');
+    case Tokens.inj:
+      return BigNumber.from('69');
     default:
       return BigNumber.from('0');
   }
@@ -58,6 +91,9 @@ export function getMasterChefPid(address: string): BigNumber {
 export function getSushiRewarder(address: string): BigNumber {
   switch (address) {
     case Tokens.yfi:
+    case Tokens.inj:
+    case Tokens.sushi:
+    case Tokens.ftm:
       return BigNumber.from(1); // Master Chef
     case Tokens.alcx:
       return BigNumber.from(2); // Master Chef V2
