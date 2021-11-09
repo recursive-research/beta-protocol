@@ -17,7 +17,7 @@ import {
   UniPool,
 } from '../typechain';
 import { deployContract } from 'ethereum-waffle';
-import { Contracts, getMasterChefPid, getSushiRewarder, getWhale, Tokens } from './constants';
+import { Contracts, getMasterChefPid, getSushiRewarder, getWhale, Tokens } from '../constants';
 
 // Helper functions to deploy contracts
 export async function deployVault(admin: SignerWithAddress): Promise<Vault> {

@@ -47,7 +47,7 @@ const config: HardhatUserConfig = {
       chainId: 31337,
       forking: {
         url: alchemyApiUrlMainnet,
-        blockNumber: 13000000, // post-london
+        blockNumber: 13583262, // post-london
       },
     },
     mainnet: {
