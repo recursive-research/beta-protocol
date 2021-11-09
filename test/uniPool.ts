@@ -19,6 +19,7 @@ describe('Rift Uniswap Pool Unit tests', () => {
   let admin: SignerWithAddress;
   let alice: SignerWithAddress;
   let bob: SignerWithAddress;
+  let charlie: SignerWithAddress;
 
   let weth: IWETH;
   let token: ERC20;
@@ -31,7 +32,7 @@ describe('Rift Uniswap Pool Unit tests', () => {
     // account setup
     const signers: SignerWithAddress[] = await ethers.getSigners();
 
-    [admin, alice, bob] = signers;
+    [admin, alice, bob, charlie] = signers;
 
     // external contract setup
     weth = await getWETH();
@@ -185,6 +186,13 @@ describe('Rift Uniswap Pool Unit tests', () => {
         await uniswapRouter
           .connect(bob)
           .swapExactTokensForTokens(wethTradeAmount, 0, [weth.address, token.address], bob.address, 2000000000);
+
+        // add extra swap to suppress price sufficiently
+        await weth.connect(charlie).deposit({ value: wethTradeAmount });
+        await weth.connect(charlie).approve(uniswapRouter.address, wethTradeAmount);
+        await uniswapRouter
+          .connect(charlie)
+          .swapExactTokensForTokens(wethTradeAmount, 0, [weth.address, token.address], charlie.address, 2000000000);
 
         await vault.unpairLiquidityPool(pool.address, 1, 1);
 
