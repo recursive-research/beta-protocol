@@ -89,7 +89,7 @@ async function main() {
 
   // -- rando makes swaps to and from usdc/t
   // -- there's 1-7mm of volume per day, so we'll get ~150mm of swaps to simulate about 1 month
-  for (let i = 0; i < 15; i++) {
+  for (let i = 0; i < 14; i++) {
     if (i % 2 == 0) {
       const randoBalance = await usdc.balanceOf(rando.address);
       await uniRouter

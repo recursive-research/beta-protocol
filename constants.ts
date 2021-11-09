@@ -63,6 +63,8 @@ export function getWhale(address: string): string {
       return '0x28c6c06298d514db089934071355e5743bf21d60';
     case Tokens.alcx:
       return '0x000000000000000000000000000000000000dEaD';
+    case Tokens.inj:
+      return '0x7E233EAfC76243474369bd080238fD6EB36A73CE';
     default:
       return '0xF977814e90dA44bFA03b6295A0616a897441aceC';
   }
