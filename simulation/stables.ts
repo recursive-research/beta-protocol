@@ -1,14 +1,14 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { ethers } from 'hardhat';
 import { BigNumber as BN } from 'ethers';
-import { Tokens } from '../constants';
+import { Addresses, Contracts, Tokens } from '../constants';
 import { deployStableVault, getERC20, getTokens } from '../test/utils';
-import { StableVault } from '../typechain';
+import { IUniswapV2Router02__factory, StableVault } from '../typechain';
 
 async function main() {
   // get addresses
   const signers: SignerWithAddress[] = await ethers.getSigners();
-  const [admin, alice, bob, charlie] = signers;
+  const [admin, alice, bob, charlie, rando] = signers;
 
   // get tokens
   const usdc = await getERC20(Tokens.usdc);
@@ -51,8 +51,8 @@ async function main() {
   console.log('Bob svUSDC balance:', bobSvUsdcBalance.toString());
   console.log('Charlie svUSDT balance:', charlieSvUsdtBalance.toString());
 
-  const vaultUsdcBalance = (await usdc.balanceOf(stableVault.address)).div(1e6);
-  const vaultUsdtBalance = (await usdt.balanceOf(stableVault.address)).div(1e6);
+  let vaultUsdcBalance = (await usdc.balanceOf(stableVault.address)).div(1e6);
+  let vaultUsdtBalance = (await usdt.balanceOf(stableVault.address)).div(1e6);
   console.log('Vault USDC balance', vaultUsdcBalance.toString());
   console.log('Vault USDT balance', vaultUsdtBalance.toString());
   console.log('----------------------');
@@ -74,6 +74,93 @@ async function main() {
   console.log('Remaining USDC balance', remainingUsdcBalance.toString());
   console.log('Remaining USDT balance', remainingUsdtBalance.toString());
   console.log('----------------------');
+
+  // allow random users to swap between usdc<>usdt while position is deployed
+  console.log('Collecting swap fees...');
+  // -- get rando 1m of each to swap with
+  const uniRouter = IUniswapV2Router02__factory.connect(Contracts.uniswapRouter, rando);
+
+  // get the user 10mm usdc
+  const randoUsdcAmount = BN.from(10000000).mul(1e6);
+  await getTokens(rando, usdc, randoUsdcAmount);
+
+  await usdc.connect(rando).approve(uniRouter.address, ethers.constants.MaxUint256);
+  await usdt.connect(rando).approve(uniRouter.address, ethers.constants.MaxUint256);
+
+  // -- rando makes swaps to and from usdc/t
+  // -- there's 1-7mm of volume per day, so we'll get ~150mm of swaps to simulate about 1 month
+  for (let i = 0; i < 15; i++) {
+    if (i % 2 == 0) {
+      const randoBalance = await usdc.balanceOf(rando.address);
+      await uniRouter
+        .connect(rando)
+        .swapExactTokensForTokens(randoBalance, 0, [usdc.address, usdt.address], rando.address, 2000000000);
+    } else {
+      const randoBalance = await usdt.balanceOf(rando.address);
+      await uniRouter
+        .connect(rando)
+        .swapExactTokensForTokens(randoBalance, 0, [usdt.address, usdc.address], rando.address, 2000000000);
+    }
+  }
+
+  // Unpair liquidity
+  console.log('----------------------');
+  console.log('Unpairing liquidity position...');
+
+  const usdcReserve = await usdc.balanceOf(uniV2pair.address);
+  const usdtReserve = await usdt.balanceOf(uniV2pair.address);
+  const vaultLpBalance = await uniV2pair.balanceOf(stableVault.address);
+  const lpSupply = await uniV2pair.totalSupply();
+  const vaultUsdcAlloction = usdcReserve.mul(vaultLpBalance).div(lpSupply);
+  const vaultUsdtAlloction = usdtReserve.mul(vaultLpBalance).div(lpSupply);
+  const totalAllocation = vaultUsdcAlloction.add(vaultUsdtAlloction);
+  const usdcDeposits = usdcDepositAlice.add(usdcDepositBob);
+  const usdtDeposits = usdtDepositCharlie;
+  const returns = totalAllocation.sub(usdcDeposits.add(usdtDeposits));
+  const usdtReturn = returns.mul(usdtDeposits).div(usdcDeposits);
+  const usdtExcess = vaultUsdtAlloction.sub(usdtDeposits).sub(usdtReturn);
+
+  const swapAmountInUsdt = usdtExcess;
+  const swapAmountOutUsdc = 0;
+  const _swapUsdc = false;
+  const _minUsdc = 0;
+  const _minUsdt = 0;
+
+  await stableVault.removeLiquidity(_minUsdc, _minUsdt, swapAmountInUsdt, swapAmountOutUsdc, _swapUsdc);
+
+  vaultUsdcBalance = (await usdc.balanceOf(stableVault.address)).div(1e6);
+  vaultUsdtBalance = (await usdt.balanceOf(stableVault.address)).div(1e6);
+  console.log('Vault USDC balance', vaultUsdcBalance.toString());
+  console.log('Vault USDT balance', vaultUsdtBalance.toString());
+  console.log('----------------------');
+
+  // Withdraws
+  await stableVault.connect(alice).withdrawToken(usdc.address, Addresses.zero);
+  const aliceUsdcBalanceFinal = await usdc.balanceOf(alice.address);
+  console.log(
+    'Alice USDC returns:',
+    aliceUsdcBalanceFinal.sub(usdcDepositAlice).div(1e6).toString(),
+    'on initial deposit of ',
+    usdcDepositAlice.div(1e6).toString(),
+  );
+
+  await stableVault.connect(bob).withdrawToken(usdc.address, Addresses.zero);
+  const bobUsdcBalanceFinal = await usdc.balanceOf(bob.address);
+  console.log(
+    'Bob USDC returns:',
+    bobUsdcBalanceFinal.sub(usdcDepositBob).div(1e6).toString(),
+    'on initial deposit of ',
+    usdcDepositBob.div(1e6).toString(),
+  );
+
+  await stableVault.connect(charlie).withdrawToken(usdt.address, Addresses.zero);
+  const charlieUsdtBalanceFinal = await usdt.balanceOf(charlie.address);
+  console.log(
+    'Charlie USDT returns:',
+    charlieUsdtBalanceFinal.sub(usdtDepositCharlie).div(1e6).toString(),
+    'on initial deposit of ',
+    usdtDepositCharlie.div(1e6).toString(),
+  );
 }
 
 main()
