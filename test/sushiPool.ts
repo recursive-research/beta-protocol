@@ -233,24 +233,6 @@ describe('Rift Sushi Pool Unit tests', () => {
         await vault.unpairLiquidityPool(pool.address, 1, 1);
         expect(await weth.balanceOf(pool.address)).to.eq(0);
       });
-
-      it('should swap weth for token when fixed rate is greater than returns', async () => {
-        await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositAmount, 1, 1);
-        const vaultWethBalance = await weth.balanceOf(vault.address);
-
-        const sushiRouter = IUniswapV2Router02__factory.connect(Contracts.sushiRouter, bob);
-        const wethTradeAmount = (await ethers.provider.getBalance(bob.address)).div(2);
-        await weth.connect(bob).deposit({ value: wethTradeAmount });
-        await weth.connect(bob).approve(sushiRouter.address, wethTradeAmount);
-        await sushiRouter
-          .connect(bob)
-          .swapExactTokensForTokens(wethTradeAmount, 0, [weth.address, token.address], bob.address, 2000000000);
-
-        await vault.unpairLiquidityPool(pool.address, 1, 1);
-
-        expect(await weth.balanceOf(vault.address)).to.eq(vaultWethBalance); // should be no more weth than initial
-        expect(await weth.balanceOf(pool.address)).to.eq(0);
-      });
     });
 
     describe('Token with Master Chef sushi rewards', async () => {
@@ -322,40 +304,6 @@ describe('Rift Sushi Pool Unit tests', () => {
         const tokenInfo = await masterChef.userInfo(getMasterChefPid(token.address), pool.address);
         expect(tokenInfo.amount).to.eq(0);
         expect(await weth.balanceOf(pool.address)).to.eq(0);
-      });
-    });
-
-    describe('Edge cases', async () => {
-      it('should make no swap if token amount returned is exactly the token amount deposited', async () => {
-        const fixedRateZero = BigNumber.from(0);
-        const tokenDepositMinimal = BigNumber.from(100);
-        token = await getERC20(Tokens.aave);
-        vault = await deployVault(admin);
-        pool = await deploySushiPool(admin, vault, token, fixedRateZero);
-        await vault.registerPool(pool.address);
-
-        await getTokens(alice, token, tokenDepositMinimal);
-        await token.connect(alice).approve(pool.address, tokenDepositMinimal);
-        await pool.connect(alice).depositToken(tokenDepositMinimal);
-
-        await vault.connect(alice).depositEth({ value: ethDepositAmount });
-
-        await vault.nextPhase();
-        await vault.wrapEth();
-
-        await vault.pairLiquidityPool(pool.address, ethDepositAmount, tokenDepositMinimal, 0, 0);
-
-        const sushiRouter = IUniswapV2Router02__factory.connect(Contracts.sushiRouter, bob);
-        const tokenTradeAmount = ethers.utils.parseEther('8000');
-        await getTokens(bob, token, tokenTradeAmount);
-        await token.connect(bob).approve(sushiRouter.address, tokenTradeAmount);
-        await sushiRouter
-          .connect(bob)
-          .swapExactTokensForTokens(tokenTradeAmount, 0, [token.address, weth.address], bob.address, 2000000000);
-
-        await vault.unpairLiquidityPool(pool.address, 0, 0);
-        expect(await weth.balanceOf(pool.address)).to.eq(0);
-        expect(await token.balanceOf(pool.address)).to.eq(tokenDepositMinimal);
       });
     });
   });
