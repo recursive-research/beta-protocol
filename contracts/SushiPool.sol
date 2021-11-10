@@ -234,10 +234,12 @@ contract SushiPool is ERC20 {
             uint256 tokenDeficit = tokenOwed - tokenReceived;
 
             (uint256 reserveToken, uint256 reserveWETH) = SushiSwapLibrary.getReserves(sushiFactory, token, WETH);
-            uint256 wethQuote = SushiSwapLibrary.getAmountIn(tokenDeficit, reserveWETH, reserveToken);
 
             IWETH(WETH).approve(sushiRouter, wethBalance);
-            if (wethQuote <= wethBalance) {
+            if (
+                reserveToken >= tokenDeficit &&
+                SushiSwapLibrary.getAmountIn(tokenDeficit, reserveWETH, reserveToken) <= wethBalance
+            ) {
                 // if the required amount of WETH is less than the current WETH balance of the Pool, swap only the
                 // required amount of WETH
                 wethBalance -= IUniswapV2Router02(sushiRouter).swapTokensForExactTokens(
