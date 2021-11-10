@@ -12,6 +12,8 @@ import './interfaces/IVault.sol';
 import './interfaces/IWETH.sol';
 import './libraries/SushiSwapLibrary.sol';
 
+import 'hardhat/console.sol';
+
 /// @title Rift V1 Sushi Pool
 /// @notice allows users to deposit an ERC token that will be paired with ETH and deployed to a Sushiswap pool.
 contract SushiPool is ERC20 {
@@ -215,6 +217,9 @@ contract SushiPool is ERC20 {
             (((tokenPrincipalAmount * fixedRate) / 1000) * (block.timestamp - depositTimestamp)) /
             (365 days);
 
+        console.log(tokenOwed);
+        console.log(tokenReceived);
+
         if (tokenReceived > tokenOwed) {
             // if the amount of tokens received back from the LP position is sufficient to pay back the fixed rate,
             // the pool swaps any surplus tokens to WETH.
@@ -232,6 +237,7 @@ contract SushiPool is ERC20 {
             // if the amount of tokens received back from the LP position is insufficient to pay back the fixed rate,
             // the pool swaps the required weth amount to `token` to pay back the `token` depositors.
             uint256 tokenDeficit = tokenOwed - tokenReceived;
+            console.log(tokenDeficit);
 
             (uint256 reserveToken, uint256 reserveWETH) = SushiSwapLibrary.getReserves(sushiFactory, token, WETH);
 
