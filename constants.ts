@@ -64,7 +64,7 @@ export function getWhale(address: string): string {
     case Tokens.alcx:
       return '0x000000000000000000000000000000000000dEaD';
     case Tokens.inj:
-      return '0x7E233EAfC76243474369bd080238fD6EB36A73CE';
+      return '0x47ac0Fb4F2D84898e4D9E7b4DaB3C24507a6D503';
     default:
       return '0xF977814e90dA44bFA03b6295A0616a897441aceC';
   }
