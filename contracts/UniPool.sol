@@ -209,7 +209,7 @@ contract UniPool is ERC20 {
             IWETH(WETH).approve(uniswapRouter, wethBalance);
             if (
                 reserveToken >= tokenDeficit &&
-                SushiSwapLibrary.getAmountIn(tokenDeficit, reserveWETH, reserveToken) <= wethBalance
+                UniswapV2Library.getAmountIn(tokenDeficit, reserveWETH, reserveToken) <= wethBalance
             ) {
                 // if the required amount of WETH is less than the current WETH balance of the Pool, swap only the
                 // required amount of WETH
