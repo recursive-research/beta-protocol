@@ -23,7 +23,7 @@ async function main() {
   } else if (hre.network.name == 'kovan') {
     vaultAddress = Deployments.kovan.vault;
     wethAddress = Tokens.kovan.weth;
-    tokenAddress = Tokens.kovan.inj;
+    tokenAddress = token;
   } else {
     throw new Error('Unsupported network');
   }
