@@ -102,7 +102,7 @@ export async function getTokens(user: any, token: any, amount: BigNumber): Promi
 }
 
 // Helper function to interact with the EVM
-async function impersonateAccount(address: string): Promise<void> {
+export async function impersonateAccount(address: string): Promise<void> {
   await hre.network.provider.request({
     method: 'hardhat_impersonateAccount',
     params: [address],
