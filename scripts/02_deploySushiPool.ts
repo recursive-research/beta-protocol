@@ -10,7 +10,7 @@ async function main() {
 
   const sushiRewarder = getSushiRewarder(token);
   const pid = getMasterChefPid(token);
-  const fixedRate = 10;
+  const fixedRate = 5;
 
   let vaultAddress;
   let wethAddress;

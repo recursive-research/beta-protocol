@@ -6,14 +6,14 @@ import { Addresses, Deployments, Tokens } from '../constants';
 
 async function main() {
   const [deployer] = await ethers.getSigners();
-  const fixedRate = 10;
+  const fixedRate = 5;
 
   let vaultAddress;
   let wethAddress;
   let tokenAddress;
 
   if (hre.network.name == 'mainnet') {
-    vaultAddress = '';
+    vaultAddress = Deployments.mainnet.vault;
     wethAddress = Tokens.weth;
     tokenAddress = '';
   } else if (hre.network.name == 'kovan') {
