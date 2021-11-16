@@ -1,9 +1,9 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { ethers } from 'hardhat';
 import { BigNumber as BN } from 'ethers';
-import { Addresses, Contracts, Tokens } from '../constants';
-import { deployStableVault, getERC20, getTokens } from '../test/utils';
-import { IUniswapV2Router02__factory, StableVault } from '../typechain';
+import { Addresses, Contracts, Tokens } from '../../constants';
+import { deployStableVault, getERC20, getTokens } from '../../test/utils';
+import { IUniswapV2Router02__factory, StableVault } from '../../typechain';
 
 async function main() {
   // get addresses

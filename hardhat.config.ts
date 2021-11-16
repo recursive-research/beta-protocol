@@ -47,7 +47,7 @@ const config: HardhatUserConfig = {
       chainId: 31337,
       forking: {
         url: alchemyApiUrlMainnet,
-        blockNumber: 13598909, // includes live rift contracts
+        blockNumber: 13628310, // includes live rift contracts
       },
     },
     mainnet: {
