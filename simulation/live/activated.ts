@@ -39,19 +39,6 @@ async function main() {
     const pool = isSushiPool
       ? await ethers.getContractAt('SushiPool', poolAddress)
       : await ethers.getContractAt('UniPool', poolAddress);
-
-    const tokenAddress = await pool.token();
-    const token = await getERC20(tokenAddress);
-
-    console.log(await token.symbol(), 'pool owns ', (await pool.lpTokenBalance()).toString(), 'LP Tokens');
-  }
-
-  for (let i = 0; i < poolAddresses.length; i++) {
-    const poolAddress = poolAddresses[i];
-    const isSushiPool = sushiPools.includes(poolAddress);
-    const pool = isSushiPool
-      ? await ethers.getContractAt('SushiPool', poolAddress)
-      : await ethers.getContractAt('UniPool', poolAddress);
     const tokenAddress = await pool.token();
     const token = await getERC20(tokenAddress);
 
@@ -69,11 +56,19 @@ async function main() {
   await vault.connect(multisig).unwrapEth();
   const ethBalanceFinal = await ethers.provider.getBalance(vault.address);
 
+  const ethReturns =
+    ethBalanceFinal
+      .mul(1000000)
+      .div(await vault.totalSupply())
+      .toNumber() / 1000000;
   console.log(
     'ETH Returns:',
+    ethReturns,
+    '-- final pool balance:',
     ethers.utils.formatUnits(ethBalanceFinal, 18),
-    'on initial deposits of',
+    'ETH, on initial deposits of',
     ethers.utils.formatUnits(await vault.totalSupply(), 18),
+    'ETH',
   );
 }
 
