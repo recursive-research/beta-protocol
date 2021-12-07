@@ -4,7 +4,7 @@ import { BigNumber } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { ERC20, StableVault, StableVaultToken, StableVaultToken__factory } from '../typechain';
 import { deployStableVault, getERC20, getTokens } from './utils';
-import { Tokens } from './constants';
+import { Tokens } from '../constants';
 
 describe('Rift Stable Vault Token Unit tests', () => {
   const usdcDepositAmount = BigNumber.from(1000).mul(1e6);

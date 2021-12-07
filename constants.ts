@@ -6,7 +6,7 @@ export const Tokens = {
   ftm: '0x4E15361FD6b4BB609Fa63C81A2be19d873717870',
   inj: '0xe28b3B32B6c345A34Ff64674606124Dd5Aceca30',
   pond: '0x57b946008913b82e4df85f501cbaed910e58d26c',
-  prq: '0x362bc847a3a9637d3af6624eec853618a43ed7d2',
+  prq: '0x362bc847A3a9637d3af6624EeC853618a43ed7D2',
   ramp: '0x33d0568941c0c64ff7e0fb4fba0b11bd37deed9f',
   sushi: '0x6B3595068778DD592e39A122f4f5a5cF09C90fE2',
   uft: '0x0202be363b8a4820f3f4de7faf5224ff05943ab1',
@@ -73,6 +73,12 @@ export function getWhale(address: string): string {
       return '0x28c6c06298d514db089934071355e5743bf21d60';
     case Tokens.alcx:
       return '0x000000000000000000000000000000000000dEaD';
+    case Tokens.inj:
+      return '0x47ac0Fb4F2D84898e4D9E7b4DaB3C24507a6D503';
+    case Tokens.wluna:
+      return '0x5f65f7b609678448494De4C87521CdF6cEf1e932';
+    case Tokens.prq:
+      return '0x533e3c0e6b48010873B947bddC4721b1bDFF9648';
     default:
       return '0xF977814e90dA44bFA03b6295A0616a897441aceC';
   }

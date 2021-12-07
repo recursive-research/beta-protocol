@@ -17,7 +17,7 @@ import {
   UniPool,
 } from '../typechain';
 import { deployContract } from 'ethereum-waffle';
-import { Contracts, getMasterChefPid, getSushiRewarder, getWhale, Tokens } from './constants';
+import { Contracts, getMasterChefPid, getSushiRewarder, getWhale, Tokens } from '../constants';
 
 // Helper functions to deploy contracts
 export async function deployVault(admin: SignerWithAddress): Promise<Vault> {
@@ -102,7 +102,7 @@ export async function getTokens(user: any, token: any, amount: BigNumber): Promi
 }
 
 // Helper function to interact with the EVM
-async function impersonateAccount(address: string): Promise<void> {
+export async function impersonateAccount(address: string): Promise<void> {
   await hre.network.provider.request({
     method: 'hardhat_impersonateAccount',
     params: [address],
