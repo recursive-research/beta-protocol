@@ -12,11 +12,18 @@ import { HardhatUserConfig } from 'hardhat/config';
 
 dotenvConfig({ path: resolve(__dirname, '.env') });
 
-let privateKey: string;
+let devPrivateKey: string;
 if (!process.env.PRIVATE_KEY) {
   throw new Error('Please set your PRIVATE_KEY in a .env file');
 } else {
-  privateKey = process.env.PRIVATE_KEY;
+  devPrivateKey = process.env.PRIVATE_KEY;
+}
+
+let prodPrivateKey: string;
+if (!process.env.PRIVATE_KEY_PROD) {
+  throw new Error('Please set your PRIVATE_KEY in a .env file');
+} else {
+  prodPrivateKey = process.env.PRIVATE_KEY_PROD;
 }
 
 let alchemyApiUrlKovan: string;
@@ -43,9 +50,14 @@ const config: HardhatUserConfig = {
         blockNumber: 13000000, // post-london
       },
     },
+    mainnet: {
+      chainId: 1,
+      accounts: [prodPrivateKey],
+      url: alchemyApiUrlMainnet,
+    },
     kovan: {
       chainId: 42,
-      accounts: [privateKey],
+      accounts: [devPrivateKey],
       url: alchemyApiUrlKovan,
     },
   },
