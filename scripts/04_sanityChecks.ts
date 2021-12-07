@@ -16,6 +16,8 @@ async function main() {
   for (const poolAddress of poolAddresses) {
     console.log('verifying pool at:', poolAddress);
     const pool = await ethers.getContractAt('SushiPool', poolAddress);
+    console.log('token: ', await pool.token());
+    console.log('pair: ', await pool.pair());
 
     expect(await pool.vault()).to.eq(Deployments.mainnet.vault);
     expect(await pool.migrator()).to.eq(Addresses.gnosis_beta);

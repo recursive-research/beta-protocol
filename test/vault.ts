@@ -5,7 +5,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
 import { deploySushiPool, deployVault, deployVaultV2, getERC20, getTokens, getWETH } from './utils';
 import { Vault, ERC20, IWETH, VaultV2Mock, SushiPool } from '../typechain';
-import { Addresses, Tokens } from './constants';
+import { Addresses, Tokens } from '../constants';
 import { Artifact } from 'hardhat/types';
 import { deployContract } from 'ethereum-waffle';
 
