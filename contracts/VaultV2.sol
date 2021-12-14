@@ -11,6 +11,8 @@ contract VaultWithdraw is IVaultV2 {
     address public vaultV1;
     uint256 public effectiveTotalSupply;
 
+    mapping(address => bool) public withdrawn;
+
     constructor(address _vaultV1) {
         vaultV1 = _vaultV1;
         effectiveTotalSupply = IERC20(_vaultV1).totalSupply();
@@ -23,11 +25,12 @@ contract VaultWithdraw is IVaultV2 {
     function withdraw() external {
         uint256 v1Balance = IERC20(vaultV1).balanceOf(msg.sender);
         require(v1Balance > 0, 'no v1 balance');
+        require(!withdrawn[msg.sender], 'user already withdrawn');
 
         uint256 ethShare = (address(this).balance * v1Balance) / effectiveTotalSupply - 1;
         effectiveTotalSupply -= v1Balance;
 
-        IERC20(vaultV1).transferFrom(msg.sender, address(this), v1Balance);
+        withdrawn[msg.sender] = true;
         payable(msg.sender).transfer(ethShare);
     }
 }
