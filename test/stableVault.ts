@@ -4,7 +4,7 @@ import { BigNumber } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { ERC20, StableVault } from '../typechain';
 import { deployStableVault, deployStableVaultV2, getERC20, getTokens } from './utils';
-import { Addresses, Tokens } from './constants';
+import { Addresses, Tokens } from '../constants';
 import { Artifact } from 'hardhat/types';
 import { deployContract } from 'ethereum-waffle';
 

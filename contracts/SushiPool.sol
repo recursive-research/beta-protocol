@@ -320,4 +320,9 @@ contract SushiPool is ERC20 {
         require(msg.sender == migrator, 'only migrator');
         migrator = _newMigrator;
     }
+
+    /// @notice mint same number of staking tokens as underlying deposited
+    function decimals() public view override returns (uint8) {
+        return ERC20(token).decimals();
+    }
 }

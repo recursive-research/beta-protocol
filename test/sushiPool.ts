@@ -24,7 +24,7 @@ import {
   deployPoolV2,
   getWETH,
 } from './utils';
-import { Addresses, Contracts, getMasterChefPid, getSushiRewarder, Tokens } from './constants';
+import { Addresses, Contracts, getMasterChefPid, getSushiRewarder, Tokens } from '../constants';
 import { Artifact } from 'hardhat/types';
 import { deployContract } from 'ethereum-waffle';
 
