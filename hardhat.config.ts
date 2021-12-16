@@ -4,7 +4,7 @@ import 'hardhat-gas-reporter';
 import 'solidity-coverage';
 import 'hardhat-abi-exporter';
 import 'hardhat-contract-sizer';
-
+import '@nomiclabs/hardhat-etherscan';
 import { resolve } from 'path';
 
 import { config as dotenvConfig } from 'dotenv';
@@ -48,6 +48,14 @@ const config: HardhatUserConfig = {
       accounts: [privateKey],
       url: alchemyApiUrlKovan,
     },
+    rinkeby: {
+      chainId: 4,
+      url: process.env.ALCHEMY_RINKEBY_API,
+      accounts: [process.env.PRIVATE_KEY],
+    },
+  },
+  etherscan: {
+    apiKey: process.env.SCAN_API,
   },
   solidity: {
     version: '0.8.6',
