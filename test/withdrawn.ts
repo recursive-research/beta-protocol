@@ -10,14 +10,12 @@ const uniPools = [
   Deployments.mainnet.uftPool,
   Deployments.mainnet.rampPool,
 ];
-
 const sushiPools = [
   Deployments.mainnet.alcxPool,
   Deployments.mainnet.ftmPool,
   Deployments.mainnet.injPool,
   Deployments.mainnet.pondPool,
 ];
-
 const LPHolders = [
   Addresses.lunaLP,
   Addresses.prqLP,

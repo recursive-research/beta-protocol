@@ -8,7 +8,7 @@ import './interfaces/IVaultV2.sol';
 import './interfaces/IWETH.sol';
 import './Vault.sol';
 
-contract Withdrawn is ERC20('RIFT Withdrawn', 'riftWithdrawn'), Ownable {
+contract Withdrawn {
     address public vault;
     uint256 public vaultUnredeemedSupply;
     mapping(address => address) public poolToToken;
@@ -29,33 +29,31 @@ contract Withdrawn is ERC20('RIFT Withdrawn', 'riftWithdrawn'), Ownable {
     }
 
     function migrateLiquidity() external payable {
+        require(msg.sender == vault, 'Only Vault Address Could Migrate Liquidity');
         vaultUnredeemedSupply = IERC20(msg.sender).totalSupply();
     }
 
-    function withdrawToken(address pool) external returns (uint256) {
-        require(poolToToken[pool] != address(0), 'Withdraw Pool Needs to be a Rift V1 Pool');
+    function withdrawToken(address pool) external {
+        address token = poolToToken[pool];
+        require(token != address(0), 'Withdraw Pool Needs to be a Rift V1 Pool');
         uint256 lpBalance = IERC20(pool).balanceOf(msg.sender);
         require(lpBalance != 0, 'No Deposited Liquidity');
         require(withdrawn[pool][msg.sender] == false, 'Already Withdrawn');
         withdrawn[pool][msg.sender] = true;
-        IERC20(pool).transferFrom(msg.sender, address(this), lpBalance);
-        uint256 tokenBalance = IERC20(poolToToken[pool]).balanceOf(address(this));
+        uint256 tokenBalance = IERC20(token).balanceOf(address(this));
         uint256 withdrawAmt = (lpBalance * tokenBalance) / poolToUnredeemedSupply[pool];
         poolToUnredeemedSupply[pool] -= lpBalance;
-        IERC20(poolToToken[pool]).transfer(msg.sender, withdrawAmt);
-        return withdrawAmt;
+        IERC20(token).transfer(msg.sender, withdrawAmt);
     }
 
-    function withdrawETH() external returns (uint256) {
+    function withdrawETH() external {
         uint256 lpBalance = IERC20(vault).balanceOf(msg.sender);
         require(lpBalance != 0, 'No Deposited Liquidity');
         require(withdrawn[vault][msg.sender] == false, 'Already Withdrawn');
         withdrawn[vault][msg.sender] = true;
-        IERC20(vault).transferFrom(msg.sender, address(this), lpBalance);
         uint256 ethBalance = address(this).balance;
         uint256 withdrawAmt = (lpBalance * ethBalance) / vaultUnredeemedSupply;
         vaultUnredeemedSupply -= lpBalance;
         payable(msg.sender).transfer(withdrawAmt);
-        return withdrawAmt;
     }
 }
