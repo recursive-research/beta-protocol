@@ -60,6 +60,15 @@ export const Addresses = {
   zero: '0x0000000000000000000000000000000000000000',
   dead: '0x000000000000000000000000000000000000dEaD',
   gnosis_beta: '0x597C38aE5e20f81DcE85E484621e05b1ED99B235',
+  lunaLP: '0x447f95026107aaed7472a0470931e689f51e0e42',
+  prqLP: '0xad828338e133a982c329e5eced8eefb09e4e4d28',
+  uftLP: '0xd5d38af4482a37e3e0e6c86cb4d1cd97a04161b9',
+  rampLP: '0xc9014686f6336ad558b539565d5dff840b339082',
+  alcxLP: '0xd8515ae9d3b9cdecbeeb3f21f6ea4ee170199f1d',
+  ftmLP: '0xdcc6855b771dbde9d8b50896d198d9e062b6cb8a',
+  injLP: '0x423e9f2ab855e61f7f07d2586cd9484ae4416d44',
+  pondLP: '0xef34f1f686297ef83d9fc0c06b0c68c9d16b07b9',
+  ethLP: '0x8163d9be044c27b5f8efb7041a5e5ad2ef53f6af',
 };
 
 export function getWhale(address: string): string {

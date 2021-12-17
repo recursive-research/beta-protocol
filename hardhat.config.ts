@@ -18,14 +18,14 @@ if (!process.env.PRIVATE_KEY) {
 } else {
   devPrivateKey = process.env.PRIVATE_KEY;
 }
-
+/*
 let prodPrivateKey: string;
 if (!process.env.PRIVATE_KEY_PROD) {
   throw new Error('Please set your PRIVATE_KEY in a .env file');
 } else {
   prodPrivateKey = process.env.PRIVATE_KEY_PROD;
 }
-
+*/
 let alchemyApiUrlKovan: string;
 if (!process.env.ALCHEMY_API_URL_KOVAN) {
   throw new Error('Please set your ALCHEMY_API_URL_MUMBAI in a .env file');
@@ -51,7 +51,7 @@ const config: HardhatUserConfig = {
     },
     mainnet: {
       chainId: 1,
-      accounts: [prodPrivateKey],
+      accounts: [devPrivateKey],
       url: alchemyApiUrlMainnet,
     },
     kovan: {
