@@ -13,7 +13,6 @@ contract Withdrawn {
     uint256 public vaultUnredeemedSupply;
     mapping(address => address) public poolToToken;
     mapping(address => uint256) public poolToUnredeemedSupply;
-    mapping(address => mapping(address => bool)) public withdrawn;
 
     constructor(address _vault, address[] memory pools) {
         vault = _vault;
@@ -38,8 +37,7 @@ contract Withdrawn {
         require(token != address(0), 'Withdraw Pool Needs to be a Rift V1 Pool');
         uint256 lpBalance = IERC20(pool).balanceOf(msg.sender);
         require(lpBalance != 0, 'No Deposited Liquidity');
-        require(withdrawn[pool][msg.sender] == false, 'Already Withdrawn');
-        withdrawn[pool][msg.sender] = true;
+        IERC20(pool).transferFrom(msg.sender, address(this), lpBalance);
         uint256 tokenBalance = IERC20(token).balanceOf(address(this));
         uint256 withdrawAmt = (lpBalance * tokenBalance) / poolToUnredeemedSupply[pool];
         poolToUnredeemedSupply[pool] -= lpBalance;
@@ -49,8 +47,7 @@ contract Withdrawn {
     function withdrawETH() external {
         uint256 lpBalance = IERC20(vault).balanceOf(msg.sender);
         require(lpBalance != 0, 'No Deposited Liquidity');
-        require(withdrawn[vault][msg.sender] == false, 'Already Withdrawn');
-        withdrawn[vault][msg.sender] = true;
+        IERC20(vault).transferFrom(msg.sender, address(this), lpBalance);
         uint256 ethBalance = address(this).balance;
         uint256 withdrawAmt = (lpBalance * ethBalance) / vaultUnredeemedSupply;
         vaultUnredeemedSupply -= lpBalance;

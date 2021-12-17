@@ -79,6 +79,9 @@ async function main() {
     expect(withdrawnAmt).equal(supposedAmt);
     console.log('Withdraw ', ethers.utils.formatUnits(withdrawnAmt, 18));
     console.log('Supposed ', ethers.utils.formatUnits(supposedAmt, 18));
+    await expect(withdrawnContract.connect(LPHolder).withdrawToken(pool.address)).to.be.revertedWith(
+      'No Deposited Liquidity',
+    );
   }
   // Migrate Liquidity for Vault
   const ETHBalance = await ethers.provider.getBalance(vault.address);
