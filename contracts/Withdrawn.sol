@@ -1,14 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.6;
-import '@openzeppelin/contracts/access/Ownable.sol';
-import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
-import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import './interfaces/IPool.sol';
-import './interfaces/IVaultV2.sol';
-import './interfaces/IWETH.sol';
-import './Vault.sol';
 
 contract Withdrawn {
+    using SafeERC20 for IERC20;
     address public vault;
     uint256 public vaultUnredeemedSupply;
     mapping(address => address) public poolToToken;
@@ -22,32 +18,32 @@ contract Withdrawn {
     }
 
     function migrateLiquidity(uint256 amount) external {
-        require(poolToToken[msg.sender] != address(0), 'Only Rift V1 Pool Could Migrate Liquidity');
-        IERC20(poolToToken[msg.sender]).transferFrom(msg.sender, address(this), amount);
+        require(poolToToken[msg.sender] != address(0), 'ONLY POOL');
+        IERC20(poolToToken[msg.sender]).safeTransferFrom(msg.sender, address(this), amount);
         poolToUnredeemedSupply[msg.sender] = IERC20(msg.sender).totalSupply();
     }
 
     function migrateLiquidity() external payable {
-        require(msg.sender == vault, 'Only Vault Address Could Migrate Liquidity');
+        require(msg.sender == vault, 'ONLY VAULT');
         vaultUnredeemedSupply = IERC20(msg.sender).totalSupply();
     }
 
     function withdrawToken(address pool) external {
         address token = poolToToken[pool];
-        require(token != address(0), 'Withdraw Pool Needs to be a Rift V1 Pool');
+        require(token != address(0), 'ONLY POOL');
         uint256 lpBalance = IERC20(pool).balanceOf(msg.sender);
-        require(lpBalance != 0, 'No Deposited Liquidity');
-        IERC20(pool).transferFrom(msg.sender, address(this), lpBalance);
+        require(lpBalance != 0, 'NO LIQUIDITY');
+        IERC20(pool).safeTransferFrom(msg.sender, address(this), lpBalance);
         uint256 tokenBalance = IERC20(token).balanceOf(address(this));
         uint256 withdrawAmt = (lpBalance * tokenBalance) / poolToUnredeemedSupply[pool];
         poolToUnredeemedSupply[pool] -= lpBalance;
-        IERC20(token).transfer(msg.sender, withdrawAmt);
+        IERC20(token).safeTransfer(msg.sender, withdrawAmt);
     }
 
     function withdrawETH() external {
         uint256 lpBalance = IERC20(vault).balanceOf(msg.sender);
-        require(lpBalance != 0, 'No Deposited Liquidity');
-        IERC20(vault).transferFrom(msg.sender, address(this), lpBalance);
+        require(lpBalance != 0, 'NO LIQUIDITY');
+        IERC20(vault).safeTransferFrom(msg.sender, address(this), lpBalance);
         uint256 ethBalance = address(this).balance;
         uint256 withdrawAmt = (lpBalance * ethBalance) / vaultUnredeemedSupply;
         vaultUnredeemedSupply -= lpBalance;

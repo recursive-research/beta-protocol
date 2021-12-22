@@ -4,7 +4,7 @@ import 'hardhat-gas-reporter';
 import 'solidity-coverage';
 import 'hardhat-abi-exporter';
 import 'hardhat-contract-sizer';
-import '@nomiclabs/hardhat-etherscan';
+
 import { resolve } from 'path';
 
 import { config as dotenvConfig } from 'dotenv';
@@ -18,14 +18,14 @@ if (!process.env.PRIVATE_KEY) {
 } else {
   devPrivateKey = process.env.PRIVATE_KEY;
 }
-/*
+
 let prodPrivateKey: string;
 if (!process.env.PRIVATE_KEY_PROD) {
   throw new Error('Please set your PRIVATE_KEY in a .env file');
 } else {
   prodPrivateKey = process.env.PRIVATE_KEY_PROD;
 }
-*/
+
 let alchemyApiUrlKovan: string;
 if (!process.env.ALCHEMY_API_URL_KOVAN) {
   throw new Error('Please set your ALCHEMY_API_URL_MUMBAI in a .env file');
@@ -51,7 +51,7 @@ const config: HardhatUserConfig = {
     },
     mainnet: {
       chainId: 1,
-      accounts: [devPrivateKey],
+      accounts: [prodPrivateKey],
       url: alchemyApiUrlMainnet,
     },
     kovan: {
@@ -59,14 +59,6 @@ const config: HardhatUserConfig = {
       accounts: [devPrivateKey],
       url: alchemyApiUrlKovan,
     },
-    rinkeby: {
-      chainId: 4,
-      url: process.env.ALCHEMY_RINKEBY_API,
-      accounts: [process.env.PRIVATE_KEY],
-    },
-  },
-  etherscan: {
-    apiKey: process.env.SCAN_API,
   },
   solidity: {
     version: '0.8.6',
