@@ -1,6 +1,6 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { expect } from 'chai';
-import { BigNumber, Signer } from 'ethers';
+import { BigNumber } from 'ethers';
 import { ethers } from 'hardhat';
 import { Addresses, Deployments, poolLP, ethLP } from '../constants';
 import { getERC20, impersonateAccount } from './utils';
@@ -41,7 +41,6 @@ async function activate() {
   }
   await vault.connect(multisig).nextPhase();
   await vault.connect(multisig).unwrapEth();
-  console.log('Finish Advancing Phase');
 }
 
 // caulculate the theoretical withdrawn amount
@@ -87,18 +86,18 @@ async function processVaultWithdraw(vault: Vault, LpHolder: string, withdrawnCon
   return [withdrawAmt, supposedAmt];
 }
 
-describe('Withdrawn Unit Tests', () => {
-  let vault: Vault;
+describe('Withdrawn Unit Tests', async function () {
+  let vault;
+  let multisig;
   let withdrawnContract: Withdrawn;
-  let multisig: Signer;
-  beforeEach(async () => {
+
+  it('Withdraw From Each Pool and Vault Once', async function () {
     await activate();
     vault = await ethers.getContractAt('Vault', Deployments.mainnet.vault);
     multisig = await ethers.getSigner(Addresses.gnosis_beta);
     const withdrawn = await ethers.getContractFactory('Withdrawn');
     withdrawnContract = await withdrawn.deploy(Deployments.mainnet.vault, poolAddresses);
-  });
-  describe('Withdraw From Each Pool and Vault Once', async () => {
+
     // Process Pool
     for (let i = 0; i < poolAddresses.length; i++) {
       // Migrate Liquidity for Pool
@@ -108,7 +107,6 @@ describe('Withdrawn Unit Tests', () => {
         ? await ethers.getContractAt('SushiPool', poolAddress)
         : await ethers.getContractAt('UniPool', poolAddress);
       const token = await getERC20(await pool.token());
-      console.log('migrating liquidity for ', await token.symbol());
       // Balance of token in the Rift Pool
       let totalToken = await token.balanceOf(poolAddress);
       await pool.connect(multisig).migrateLiquidity(withdrawnContract.address);
@@ -133,29 +131,28 @@ describe('Withdrawn Unit Tests', () => {
       const [withdrawnAmt, supposedAmt] = await processVaultWithdraw(vault, ethLpAddr, withdrawnContract, totalEth);
       // supposed amt and withdrawn amt might be different due to gas
       totalEth = totalEth.sub(supposedAmt);
-      expect(withdrawnAmt.sub(supposedAmt)).to.be.lessThan(ethers.utils.parseEther('0.1'));
+      // compute the difference between withdrawn amt and suppose amt, should not be greater than 0.1 ETH
+      const gas = withdrawnAmt.sub(supposedAmt);
+      expect(gas.lte(ethers.utils.parseEther('0.1')));
     }
   });
-  describe('Withdraw Twice Expected To Fail', async () => {
+
+  it('Withdraw Twice Expected To Fail', async () => {
     for (let i = 0; i < poolAddresses.length; i++) {
       const poolAddress = poolAddresses[i];
       const isSushiPool = sushiPools.includes(poolAddress);
       const pool = isSushiPool
         ? await ethers.getContractAt('SushiPool', poolAddress)
         : await ethers.getContractAt('UniPool', poolAddress);
-      await pool.connect(multisig).migrateLiquidity(withdrawnContract.address);
       for (const LpHolderAddr of poolLP[i]) {
         const LpHolder = await ethers.getSigner(LpHolderAddr);
-        await withdrawnContract.connect(LpHolder).withdrawToken(pool.address);
         await expect(withdrawnContract.connect(LpHolder).withdrawToken(pool.address)).to.be.revertedWith(
           'NO LIQUIDITY',
         );
       }
     }
-    await vault.connect(multisig).migrateLiquidity(withdrawnContract.address);
     for (const ethLpAddr of ethLP) {
       const LpHolder = await ethers.getSigner(ethLpAddr);
-      await withdrawnContract.connect(LpHolder).withdrawETH();
       await expect(withdrawnContract.connect(LpHolder).withdrawETH()).to.be.revertedWith('NO LIQUIDITY');
     }
   });
