@@ -62,18 +62,24 @@ export const Addresses = {
   gnosis_beta: '0x597C38aE5e20f81DcE85E484621e05b1ED99B235',
 };
 
-export const poolLP = [
-  ['0x447f95026107aaed7472a0470931e689f51e0e42'],
-  ['0xad828338e133a982c329e5eced8eefb09e4e4d28'],
-  ['0xd5d38af4482a37e3e0e6c86cb4d1cd97a04161b9'],
-  ['0xc9014686f6336ad558b539565d5dff840b339082'],
-  ['0xd8515ae9d3b9cdecbeeb3f21f6ea4ee170199f1d'],
-  ['0xdcc6855b771dbde9d8b50896d198d9e062b6cb8a', '0x48f7572cFbC4F246600CF816c668271034d81F8F'],
-  ['0x423e9f2ab855e61f7f07d2586cd9484ae4416d44'],
-  ['0xef34f1f686297ef83d9fc0c06b0c68c9d16b07b9', '0xfac4666a9c1ad564e654200cf2fc872e174d3b34'],
-];
+export const poolLPs = {
+  [Deployments.mainnet.alcxPool]: ['0xd8515ae9d3b9cdecbeeb3f21f6ea4ee170199f1d'],
+  [Deployments.mainnet.ftmPool]: [
+    '0xdcc6855b771dbde9d8b50896d198d9e062b6cb8a',
+    '0x48f7572cFbC4F246600CF816c668271034d81F8F',
+  ],
+  [Deployments.mainnet.injPool]: ['0x423e9f2ab855e61f7f07d2586cd9484ae4416d44'],
+  [Deployments.mainnet.pondPool]: [
+    '0xef34f1f686297ef83d9fc0c06b0c68c9d16b07b9',
+    '0xfac4666a9c1ad564e654200cf2fc872e174d3b34',
+  ],
+  [Deployments.mainnet.rampPool]: ['0xc9014686f6336ad558b539565d5dff840b339082'],
+  [Deployments.mainnet.prqPool]: ['0xad828338e133a982c329e5eced8eefb09e4e4d28'],
+  [Deployments.mainnet.uftPool]: ['0xd5d38af4482a37e3e0e6c86cb4d1cd97a04161b9'],
+  [Deployments.mainnet.wlunaPool]: ['0x447f95026107aaed7472a0470931e689f51e0e42'],
+};
 
-export const ethLP = [
+export const ethLPs = [
   '0x8163d9be044c27b5f8efb7041a5e5ad2ef53f6af',
   '0x13b841dbf99456fb55ac0a7269d9cfbc0ced7b42',
   '0x63faf3677b9728e58ffa8787ce5a41d8f05d67de',
@@ -85,6 +91,7 @@ export const ethLP = [
   '0xa1be3e603acc2fd5d25fab20268f674b45f30bbe',
   '0xe2d67da4fbd76401ea1f34a8255f65b6fbf5f21f',
 ];
+
 export function getWhale(address: string): string {
   switch (address) {
     case Tokens.aave:

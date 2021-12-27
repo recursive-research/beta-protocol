@@ -1,5 +1,5 @@
 import { ethers } from 'hardhat';
-import { Deployments } from '../constants';
+import { Addresses, Deployments } from '../constants';
 const vaultAddress = Deployments.mainnet.vault;
 const poolAddresses = [
   Deployments.mainnet.alcxPool,
@@ -9,12 +9,14 @@ const poolAddresses = [
   Deployments.mainnet.rampPool,
   Deployments.mainnet.uftPool,
   Deployments.mainnet.prqPool,
+  Deployments.mainnet.wlunaPool,
 ];
 
 async function main() {
-  const withdrawn = await ethers.getContractFactory('Withdrawn');
-  const withdrawnContract = await withdrawn.deploy(vaultAddress, poolAddresses);
-  console.log(await withdrawnContract.vault());
+  const withdrawFactory = await ethers.getContractFactory('RiftV1Withdraw');
+  const multisig = await ethers.getSigner(Addresses.gnosis_beta);
+  const withdrawContract = await withdrawFactory.deploy(multisig.address, vaultAddress, poolAddresses);
+  console.log(await withdrawContract.vault());
   console.log('done!');
 }
 
