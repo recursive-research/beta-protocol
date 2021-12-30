@@ -2,6 +2,7 @@ import { ethers } from 'hardhat';
 import { Deployments } from '../constants';
 const vaultAddress = Deployments.mainnet.vault;
 const poolAddresses = [
+  Deployments.mainnet.wlunaPool,
   Deployments.mainnet.alcxPool,
   Deployments.mainnet.ftmPool,
   Deployments.mainnet.injPool,

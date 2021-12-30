@@ -70,7 +70,7 @@
   "lint-staged": {
     "*.{js,ts}": "eslint --fix",
     "*.{js,json,md,sol,ts}": "prettier --write",
-    "*.sol": "solhint --max-warnings 0"
+    "*.sol": "solhint --max-warnings 2"
   },
   "dependencies": {
     "@nomiclabs/hardhat-etherscan": "^2.1.7"

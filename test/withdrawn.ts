@@ -2,9 +2,9 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { expect } from 'chai';
 import { BigNumber } from 'ethers';
 import { ethers } from 'hardhat';
-import { Addresses, Deployments, poolLP, ethLP } from '../constants';
+import { Addresses, Deployments, poolLPAddr, ethLPAddr } from '../constants';
 import { getERC20, impersonateAccount } from './utils';
-import { SushiPool, Withdrawn, Vault, UniPool, ERC20 } from '../typechain/';
+import { SushiPool, RiftV1Withdraw, Vault, UniPool, ERC20 } from '../typechain/';
 const uniPools = [
   Deployments.mainnet.wlunaPool,
   Deployments.mainnet.prqPool,
@@ -19,6 +19,17 @@ const sushiPools = [
 ];
 
 const poolAddresses = uniPools.concat(sushiPools);
+const poolLP = [
+  poolLPAddr.luna,
+  poolLPAddr.prq,
+  poolLPAddr.uft,
+  poolLPAddr.ramp,
+  poolLPAddr.alcx,
+  poolLPAddr.ftm,
+  poolLPAddr.inj,
+  poolLPAddr.pond,
+];
+const ethLP = ethLPAddr;
 // next Phase and fund the wallets that we need to interact
 async function activate() {
   const signers: SignerWithAddress[] = await ethers.getSigners();
@@ -51,7 +62,7 @@ function calcWithdrawAmt(totalLp: BigNumber, LpBalance: BigNumber, totalToken: B
 async function processPoolWithdraw(
   riftPoolContract: SushiPool | UniPool,
   LpHolderAddr: string,
-  withdrawnContract: Withdrawn,
+  withdrawnContract: RiftV1Withdraw,
   token: ERC20,
   totalToken: BigNumber,
 ) {
@@ -71,7 +82,12 @@ async function processPoolWithdraw(
   return [withdrawnAmt, supposedAmt];
 }
 
-async function processVaultWithdraw(vault: Vault, LpHolder: string, withdrawnContract: Withdrawn, totalEth: BigNumber) {
+async function processVaultWithdraw(
+  vault: Vault,
+  LpHolder: string,
+  withdrawnContract: RiftV1Withdraw,
+  totalEth: BigNumber,
+) {
   const ethHolder = await ethers.getSigner(LpHolder);
   await impersonateAccount(LpHolder);
   const vaultUndeemedSupply = await withdrawnContract.vaultUnredeemedSupply();
@@ -86,17 +102,17 @@ async function processVaultWithdraw(vault: Vault, LpHolder: string, withdrawnCon
   return [withdrawAmt, supposedAmt];
 }
 
-describe('Withdrawn Unit Tests', async function () {
+describe('RiftV1Withdraw Unit Tests', async function () {
   let vault;
   let multisig;
-  let withdrawnContract: Withdrawn;
+  let withdrawnContract: RiftV1Withdraw;
 
   it('Withdraw From Each Pool and Vault Once', async function () {
     await activate();
     vault = await ethers.getContractAt('Vault', Deployments.mainnet.vault);
     multisig = await ethers.getSigner(Addresses.gnosis_beta);
-    const withdrawn = await ethers.getContractFactory('Withdrawn');
-    withdrawnContract = await withdrawn.deploy(Deployments.mainnet.vault, poolAddresses);
+    const withdrawn = await ethers.getContractFactory('RiftV1Withdraw');
+    withdrawnContract = await withdrawn.deploy(Deployments.mainnet.vault, poolAddresses, Addresses.gnosis_beta);
 
     // Process Pool
     for (let i = 0; i < poolAddresses.length; i++) {
