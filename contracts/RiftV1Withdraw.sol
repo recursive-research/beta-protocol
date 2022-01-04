@@ -66,7 +66,7 @@ contract RiftV1Withdraw {
         vaultRedeemedSupply += lpBalance;
 
         // solhint-disable-next-line avoid-low-level-calls
-        (bool sent, ) = payable(msg.sender).call{ value: withdrawAmt }('');
+        (bool sent, ) = msg.sender.call{ value: withdrawAmt }('');
         require(sent, 'Failed to send Ether');
     }
 
@@ -89,7 +89,7 @@ contract RiftV1Withdraw {
         require(ethBalance != 0, 'NO ETH');
 
         // solhint-disable-next-line avoid-low-level-calls
-        (bool sent, ) = payable(guardian).call{ value: ethBalance }('');
+        (bool sent, ) = guardian.call{ value: ethBalance }('');
         require(sent, 'Failed to send Ether');
         vaultRedeemedSupply = 0;
     }

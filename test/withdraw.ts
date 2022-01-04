@@ -122,7 +122,46 @@ async function getPoolContractAndToken(poolAddress: string) {
   return contractAndToken;
 }
 
-describe.only('RiftV1Withdraw Unit Tests', async function () {
+async function testPoolWithdraws(pool: SushiPool | UniPool, token: ERC20, withdrawContract: RiftV1Withdraw) {
+  // Balance of token in the Rift Pool
+  let totalToken = await token.balanceOf(withdrawContract.address);
+  for (const lpHolderAddress of poolLPs[pool.address]) {
+    const [withdrawAmt, supposedAmt] = await processPoolWithdraw(
+      pool,
+      lpHolderAddress,
+      withdrawContract,
+      token,
+      totalToken,
+    );
+    totalToken = totalToken.sub(withdrawAmt);
+    expect(withdrawAmt).to.be.equal(supposedAmt);
+  }
+}
+
+async function testVaultWithdraws(vault: Vault, withdrawContract: RiftV1Withdraw) {
+  // get vault eth balances
+  let totalEth = await ethers.provider.getBalance(withdrawContract.address);
+  for (const ethLpAddress of ethLPs) {
+    const [withdrawnAmt, supposedAmt] = await processVaultWithdraw(vault, ethLpAddress, withdrawContract, totalEth);
+    // supposed amt and withdrawn amt might be different due to gas
+    totalEth = totalEth.sub(supposedAmt);
+    // compute the difference between withdrawn amt and suppose amt, should not be greater than 0.1 ETH
+    const gas = supposedAmt.sub(withdrawnAmt);
+    expect(gas.lte(ethers.utils.parseEther('0.1')) && gas.gte(0));
+  }
+}
+
+async function verifyZeroFinalBalances(vault: Vault, withdrawContract: RiftV1Withdraw) {
+  for (const poolAddress of poolAddresses) {
+    const [pool, token] = await getPoolContractAndToken(poolAddress);
+    expect(await token.balanceOf(pool.address)).to.be.equal(0);
+    expect(await token.balanceOf(withdrawContract.address)).to.be.equal(0);
+  }
+  expect(await ethers.provider.getBalance(vault.address)).to.be.equal(0);
+  expect(await ethers.provider.getBalance(withdrawContract.address)).to.be.equal(0);
+}
+
+describe('RiftV1Withdraw Unit Tests', async function () {
   let vault: Vault;
   let multisig: SignerWithAddress;
   let withdrawContract: RiftV1Withdraw;
@@ -142,36 +181,16 @@ describe.only('RiftV1Withdraw Unit Tests', async function () {
       // Process Pool
       for (const poolAddress of poolAddresses) {
         const [pool, token] = await getPoolContractAndToken(poolAddress);
-
-        // Balance of token in the Rift Pool
-        let totalToken = await token.balanceOf(poolAddress);
         await pool.connect(multisig).migrateLiquidity(withdrawContract.address);
-
-        for (const lpHolderAddress of poolLPs[poolAddress]) {
-          const [withdrawAmt, supposedAmt] = await processPoolWithdraw(
-            pool,
-            lpHolderAddress,
-            withdrawContract,
-            token,
-            totalToken,
-          );
-          totalToken = totalToken.sub(withdrawAmt);
-          expect(withdrawAmt).to.be.equal(supposedAmt);
-        }
+        await testPoolWithdraws(pool, token, withdrawContract);
       }
       // Process Vault
-      // get vault eth balances
-      let totalEth = await ethers.provider.getBalance(vault.address);
-      await vault.connect(multisig).migrateLiquidity(withdrawContract.address);
       // Migrate Liquidity for Vault
-      for (const ethLpAddress of ethLPs) {
-        const [withdrawnAmt, supposedAmt] = await processVaultWithdraw(vault, ethLpAddress, withdrawContract, totalEth);
-        // supposed amt and withdrawn amt might be different due to gas
-        totalEth = totalEth.sub(supposedAmt);
-        // compute the difference between withdrawn amt and suppose amt, should not be greater than 0.1 ETH
-        const gas = supposedAmt.sub(withdrawnAmt);
-        expect(gas.lte(ethers.utils.parseEther('0.1')) && gas.gte(0));
-      }
+      await vault.connect(multisig).migrateLiquidity(withdrawContract.address);
+      await testVaultWithdraws(vault, withdrawContract);
+
+      // Check that pools and vaults are now empty
+      await verifyZeroFinalBalances(vault, withdrawContract);
     });
 
     it('Withdraw Twice Expected To Fail', async () => {
@@ -245,20 +264,30 @@ describe.only('RiftV1Withdraw Unit Tests', async function () {
     });
   });
 
-  /*describe('Double Migration', async function() {
-
-    // TODO: Replace with Unit Test
+  describe('Double Migration', async function () {
     beforeEach(activateAndInitWithdrawContract);
 
-    it('Double Token Migration - Expected Behavior', async () => {
+    it('No issues with extra migration calls', async () => {
+      // Process Pool
       for (const poolAddress of poolAddresses) {
-        // Test for each token
+        const [pool, token] = await getPoolContractAndToken(poolAddress);
+
+        await pool.connect(multisig).migrateLiquidity(withdrawContract.address);
+        await pool.connect(multisig).migrateLiquidity(withdrawContract.address);
+
+        await testPoolWithdraws(pool, token, withdrawContract);
+        await pool.connect(multisig).migrateLiquidity(withdrawContract.address);
       }
-    });
+      // Process Vault
+      // Migrate Liquidity for Vault
 
-    it('Double ETH Migration Expected Behavior  - Expected Behavior', async () => {
-      // Test for ETH
-    });
+      await vault.connect(multisig).migrateLiquidity(withdrawContract.address);
+      await vault.connect(multisig).migrateLiquidity(withdrawContract.address);
 
-  });*/
+      await testVaultWithdraws(vault, withdrawContract);
+
+      // Check that pools and vaults are now empty
+      await verifyZeroFinalBalances(vault, withdrawContract);
+    });
+  });
 });
