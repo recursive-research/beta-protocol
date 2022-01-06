@@ -32,6 +32,7 @@ export const Deployments = {
     stableVault: '0x820EFff6D9A3017e65025f2010bBED60904052fD',
     stableVaultUSDC: '0x2ded02155B7246231A1530e37Ca8CC725fC41D29',
     stableVaultUSDT: '0xc00312f64691C25dDA5ACC002e58d379b0eABb51',
+    withdrawVault: '0x34Ae79506309d87f40Af7c226E61029d4e3d188F',
   },
   mainnet: {
     vault: '0x55ca010c9E69b1D0D1919F3b7208Fa5DF63E2295',
