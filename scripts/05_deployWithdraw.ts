@@ -16,7 +16,9 @@ async function main() {
   const withdrawFactory = await ethers.getContractFactory('RiftV1Withdraw');
   const multisig = await ethers.getSigner(Addresses.gnosis_beta);
   const withdrawContract = await withdrawFactory.deploy(multisig.address, vaultAddress, poolAddresses);
+
   console.log(await withdrawContract.vault());
+  console.log(withdrawContract.address);
   console.log('done!');
 }
 

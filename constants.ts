@@ -46,6 +46,7 @@ export const Deployments = {
     stableVault: '0x9d6C589c2Fb109a57b4676e5438E5798A2f2bB5E',
     stableVaultUSDC: '0x7395537e0AaAC7EcA1E6491eCC7F5d09F5742370',
     stableVaultUSDT: '0x2432b2b951D2c8E436F79C0B453Ad7f28c81CD72',
+    withdraw: '0xA0234021E5f0f2307355F77B6c6dF747a7B955e7',
   },
 };
 
