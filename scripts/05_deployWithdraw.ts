@@ -28,7 +28,7 @@ async function main() {
     const withdrawContract = await withdrawFactory.deploy(deployer.address, vaultAddress, kovanPoolAddresses);
     console.log('Deployed to: ', withdrawContract.address);
   }
-
+ 
   console.log('done!');
 }
 
